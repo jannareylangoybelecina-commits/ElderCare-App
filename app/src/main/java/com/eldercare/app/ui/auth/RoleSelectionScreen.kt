@@ -1,18 +1,30 @@
 package com.eldercare.app.ui.auth
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -21,151 +33,156 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eldercare.app.R
-import com.eldercare.app.ui.theme.*
+import com.eldercare.app.ui.theme.ElderCareBlue
+import com.eldercare.app.ui.theme.ElderCareGray
+import com.eldercare.app.ui.theme.ElderCareGreen
+import com.eldercare.app.ui.theme.MockupCaregiverButtonBorder
+import com.eldercare.app.ui.theme.MockupCaregiverButtonFill
+import com.eldercare.app.ui.theme.MockupElderlyButtonBorder
+import com.eldercare.app.ui.theme.MockupElderlyButtonFill
+import com.eldercare.app.ui.theme.MockupRoleScreenBackground
+import com.eldercare.app.ui.theme.MockupTitleBlack
 
 /**
- * Screen 1: Role Selection
- * User picks "Elderly" or "Caregiver" before proceeding to login.
+ * Screen 1: Role selection — layout matched to reference (solid background, ~80% width buttons,
+ * logo/title spacing, thin borders, medium-weight labels).
  */
 @Composable
 fun RoleSelectionScreen(
     onElderlySelected: () -> Unit,
     onCaregiverSelected: () -> Unit
 ) {
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MockupRoleScreenBackground)
     ) {
-        // ── Light blue gradient at the bottom ────────────────
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.35f)
-                .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            ElderCareLightBlue.copy(alpha = 0.4f),
-                            ElderCareLightBlue.copy(alpha = 0.7f)
-                        )
-                    )
-                )
-        )
+        val horizontalInset = maxWidth * 0.1f
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 40.dp),
+                .statusBarsPadding()
+                .padding(horizontal = horizontalInset),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(80.dp))
+            Spacer(modifier = Modifier.height(52.dp))
 
-            // ── Logo ─────────────────────────────────────────
             Image(
                 painter = painterResource(id = R.drawable.eldercare_logo),
                 contentDescription = "ElderCare Logo",
-                modifier = Modifier.size(140.dp),
+                modifier = Modifier.size(180.dp),
                 contentScale = ContentScale.Fit
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // ── App Name ─────────────────────────────────────
-            Text(
-                text = "ElderCare",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = ElderCareBlue,
-                textAlign = TextAlign.Center
-            )
+            Row(
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Elder",
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ElderCareBlue
+                )
+                Text(
+                    text = "Care",
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ElderCareGreen
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = "Self Health Monitoring App",
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Normal,
                 color = ElderCareGray,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp,
+                letterSpacing = 0.2.sp
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            // Large gap between branding and role selection (reference)
+            Spacer(modifier = Modifier.height(56.dp))
 
-            // ── Sign In as ───────────────────────────────────
             Text(
                 text = "Sign In as",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ElderCareDarkBlue,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Normal,
+                color = MockupTitleBlack,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
-            // ── Elderly Button ───────────────────────────────
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(
-                        width = 2.dp,
-                        color = ElderCareDarkBlue,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .background(Color.White)
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onElderlySelected() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Elderly",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ElderCareDarkBlue
-                )
-            }
+            RoleChoiceButton(
+                label = "Elderly",
+                fill = MockupElderlyButtonFill,
+                borderColor = MockupElderlyButtonBorder,
+                onClick = onElderlySelected
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = "or",
-                fontSize = 16.sp,
-                color = ElderCareGray,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                color = MockupTitleBlack,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // ── Caregiver Button ─────────────────────────────
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(
-                        width = 2.dp,
-                        color = ElderCareLightGreen,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .background(ElderCareLightGreen.copy(alpha = 0.3f))
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { onCaregiverSelected() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Caregiver",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ElderCareDarkBlue
-                )
-            }
+            RoleChoiceButton(
+                label = "Caregiver",
+                fill = MockupCaregiverButtonFill,
+                borderColor = MockupCaregiverButtonBorder,
+                onClick = onCaregiverSelected
+            )
 
             Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun RoleChoiceButton(
+    label: String,
+    fill: Color,
+    borderColor: Color,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp),
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = fill),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = MockupTitleBlack
+            )
         }
     }
 }

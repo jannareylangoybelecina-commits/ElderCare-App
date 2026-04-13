@@ -1,12 +1,20 @@
 package com.eldercare.app.ui.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import com.eldercare.app.notification.NotificationHelper
+import com.eldercare.app.notification.NotificationPreferenceStore
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.tasks.await
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class UserProfile(
@@ -23,7 +31,8 @@ data class NotificationSettings(
     val missedMedication: Boolean = true,
     val appointmentReminders: Boolean = true,
     val sound: Boolean = true,
-    val vibration: Boolean = true
+    val vibration: Boolean = true,
+    val alarmToneUri: String? = null // New field for alarm tone
 )
 
 data class PrivacySettings(
@@ -44,7 +53,8 @@ data class CaregiverInfo(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _userProfile = MutableStateFlow(UserProfile())
@@ -86,13 +96,19 @@ class SettingsViewModel @Inject constructor(
         firestore.collection("users").document(uid).collection("settings").document("notifications")
             .addSnapshotListener { snapshot, error ->
                 if (error != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                val alarmUri = snapshot.getString("alarmToneUri")
+                val soundOn = snapshot.getBoolean("sound") ?: true
+                val vibrateOn = snapshot.getBoolean("vibration") ?: true
                 _notificationSettings.value = NotificationSettings(
                     readingResult = snapshot.getBoolean("readingResultNotifications") ?: true,
                     missedMedication = snapshot.getBoolean("missedMedicationAlerts") ?: true,
                     appointmentReminders = snapshot.getBoolean("appointmentReminders") ?: true,
-                    sound = snapshot.getBoolean("sound") ?: true,
-                    vibration = snapshot.getBoolean("vibration") ?: true
+                    sound = soundOn,
+                    vibration = vibrateOn,
+                    alarmToneUri = alarmUri
                 )
+                NotificationPreferenceStore.sync(appContext, alarmUri, soundOn, vibrateOn)
+                NotificationHelper.refreshChannelsFromPrefs(appContext)
             }
     }
 
@@ -141,11 +157,18 @@ class SettingsViewModel @Inject constructor(
         firestore.collection("users").document(uid).update(updates)
     }
 
-    fun updateNotificationSetting(key: String, value: Boolean) {
+    fun updateNotificationSetting(key: String, value: Any?) {
         val uid = auth.currentUser?.uid ?: return
-        val updates = mapOf(key to value)
-        firestore.collection("users").document(uid).collection("settings").document("notifications")
-            .set(updates, com.google.firebase.firestore.SetOptions.merge())
+        val docRef = firestore.collection("users").document(uid).collection("settings").document("notifications")
+        if (value == null) {
+            if (key != "alarmToneUri") return
+            docRef.set(
+                hashMapOf<String, Any>(key to FieldValue.delete()),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+        } else {
+            docRef.set(mapOf(key to value), com.google.firebase.firestore.SetOptions.merge())
+        }
     }
 
     fun updatePrivacySetting(key: String, value: Boolean) {
@@ -160,6 +183,45 @@ class SettingsViewModel @Inject constructor(
         val updates = mapOf(key to value)
         firestore.collection("users").document(uid).collection("caregivers").document(caregiverId)
             .update(updates)
+    }
+
+    fun deleteAccount(onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        val user = auth.currentUser ?: return
+        val uid = user.uid
+
+        viewModelScope.launch {
+            try {
+                // Delete user data from collections
+                val healthReadingsRef = firestore.collection("health_readings").whereEqualTo("userId", uid).get().await()
+                for (doc in healthReadingsRef) {
+                    doc.reference.delete().await()
+                }
+
+                val remindersRef = firestore.collection("reminders").whereEqualTo("userId", uid).get().await()
+                for (doc in remindersRef) {
+                    doc.reference.delete().await()
+                }
+                
+                // Delete subcollections sequentially
+                firestore.collection("users").document(uid).collection("settings").document("notifications").delete().await()
+                firestore.collection("users").document(uid).collection("settings").document("privacy").delete().await()
+                
+                val caregiversRef = firestore.collection("users").document(uid).collection("caregivers").get().await()
+                for (doc in caregiversRef) {
+                    doc.reference.delete().await()
+                }
+
+                // Delete the main user doc
+                firestore.collection("users").document(uid).delete().await()
+                
+                // Finally delete the auth user
+                user.delete().await()
+                
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
     }
 
     fun logout() {

@@ -15,6 +15,8 @@ import androidx.core.content.ContextCompat
 import com.eldercare.app.ui.navigation.ElderCareNavHost
 import com.eldercare.app.ui.theme.ElderCareTheme
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -49,9 +51,11 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            ElderCareTheme {
+            val isDarkTheme by com.eldercare.app.ui.theme.ThemeManager.isDarkTheme.collectAsState()
+            ElderCareTheme(darkTheme = isDarkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    ElderCareNavHost()
+                    val navController = androidx.navigation.compose.rememberNavController()
+                    ElderCareNavHost(navController = navController)
                 }
             }
         }

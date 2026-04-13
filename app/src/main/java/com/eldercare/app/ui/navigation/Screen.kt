@@ -1,5 +1,7 @@
 package com.eldercare.app.ui.navigation
 
+import android.net.Uri
+
 /**
  * Sealed class defining all navigation routes in the app.
  */
@@ -11,8 +13,8 @@ sealed class Screen(val route: String) {
     data object Register : Screen("register/{role}") {
         fun createRoute(role: String) = "register/$role"
     }
-    data object ForgotPassword : Screen("forgot_password/{email}") {
-        fun createRoute(email: String) = "forgot_password/$email"
+    data object ForgotPassword : Screen("forgot_password?email={email}") {
+        fun createRoute(email: String) = "forgot_password?email=${Uri.encode(email)}"
     }
     data object ElderlyDashboard : Screen("elderly_dashboard")
     data object CaregiverDashboard : Screen("caregiver_dashboard")

@@ -1,26 +1,38 @@
 package com.eldercare.app.ui.dashboard
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 
 import androidx.hilt.navigation.compose.hiltViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +48,43 @@ fun HealthReadingMedicationScreen(
 
     var medicationName by remember { mutableStateOf("") }
     var dosage by remember { mutableStateOf("") }
-    var time by remember { mutableStateOf("") }
+    var medicationTime by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+
+    // Date Picker for Health Reading
+    val calendar = Calendar.getInstance()
+    val datePickerDialog = remember {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val cal = Calendar.getInstance().apply {
+                    set(year, month, dayOfMonth)
+                }
+                date = SimpleDateFormat("MMMM d, yyyy", Locale.US).format(cal.time)
+            },
+            calendar.get(Calendar.YEAR),
+            calendar.get(Calendar.MONTH),
+            calendar.get(Calendar.DAY_OF_MONTH)
+        )
+    }
+
+    // Time Picker for Medication (12-hour with AM/PM)
+    val timePickerDialog = remember {
+        TimePickerDialog(
+            context,
+            { _, hourOfDay, minute ->
+                val cal = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, hourOfDay)
+                    set(Calendar.MINUTE, minute)
+                }
+                medicationTime = SimpleDateFormat("hh:mm a", Locale.US).format(cal.time)
+            },
+            calendar.get(Calendar.HOUR_OF_DAY),
+            calendar.get(Calendar.MINUTE),
+            false // 12-hour format with AM/PM
+        )
+    }
 
     Scaffold(
         containerColor = Color(0xFFF9FAFC),
@@ -53,6 +101,7 @@ fun HealthReadingMedicationScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBackIosNew,
                             contentDescription = "Back",
+                            tint = Color.Black,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -89,22 +138,25 @@ fun HealthReadingMedicationScreen(
                         .padding(16.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Blood Pressure", fontSize = 14.sp, color = Color.Black, modifier = Modifier.offset(y = (-24).dp))
-                        
-                        Text("Systolic", fontSize = 14.sp, color = Color.Black)
+                        Text("Blood Pressure", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color.Black)
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Systolic", fontSize = 16.sp, color = Color.Black)
                         BasicTextField(
                             value = systolic,
-                            onValueChange = { systolic = it },
+                            onValueChange = { systolic = it.filter { c -> c.isDigit() } },
                             modifier = Modifier.fillMaxWidth().height(48.dp).padding(top = 4.dp),
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = Color.Black, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            textStyle = TextStyle(fontSize = 18.sp, color = Color.Black, textAlign = TextAlign.Center),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                         HorizontalDivider(color = Color.Black, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-                        Text("Dystolic", fontSize = 14.sp, color = Color.Black)
+                        Text("Diastolic", fontSize = 16.sp, color = Color.Black)
                         BasicTextField(
                             value = diastolic,
-                            onValueChange = { diastolic = it },
+                            onValueChange = { diastolic = it.filter { c -> c.isDigit() } },
                             modifier = Modifier.fillMaxWidth().height(48.dp).padding(top = 4.dp),
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = Color.Black, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                            textStyle = TextStyle(fontSize = 18.sp, color = Color.Black, textAlign = TextAlign.Center),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                     }
                 }
@@ -114,37 +166,108 @@ fun HealthReadingMedicationScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Date - with calendar picker
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text("Date", fontSize = 14.sp, color = Color.Black)
+                        Text("Date", fontSize = 16.sp, color = Color.Black)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Box(modifier = Modifier.fillMaxWidth().height(40.dp).background(Color(0xFFA1C6E8), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                            BasicTextField(value = date, onValueChange = { date = it }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Black))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .background(Color(0xFFA1C6E8), RoundedCornerShape(8.dp))
+                                .clickable { datePickerDialog.show() }
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = date.ifBlank { "Select date" },
+                                    fontSize = 14.sp,
+                                    color = if (date.isBlank()) Color.DarkGray else Color.Black,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.CalendarToday,
+                                    contentDescription = "Pick date",
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
+
+                    // Weight - auto-append "kg"
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text("Weight", fontSize = 14.sp, color = Color.Black)
+                        Text("Weight", fontSize = 16.sp, color = Color.Black)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Box(modifier = Modifier.fillMaxWidth().height(40.dp).background(Color(0xFFA1C6E8), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                            BasicTextField(value = weight, onValueChange = { weight = it }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Black))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .background(Color(0xFFA1C6E8), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                BasicTextField(
+                                    value = weight,
+                                    onValueChange = { weight = it.filter { c -> c.isDigit() || c == '.' } },
+                                    modifier = Modifier.weight(1f),
+                                    textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                                )
+                                if (weight.isNotBlank()) {
+                                    Text("kg", fontSize = 16.sp, color = Color.DarkGray, fontWeight = FontWeight.Medium)
+                                }
+                            }
                         }
                     }
+
+                    // Heart Rate / Pulse - text field input
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text("Heart Rate Pulse", fontSize = 14.sp, color = Color.Black)
+                        Text("Heart Rate / Pulse", fontSize = 16.sp, color = Color.Black)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Box(modifier = Modifier.fillMaxWidth().height(40.dp).background(Color(0xFFA1C6E8), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp), contentAlignment = Alignment.Center) {
-                            BasicTextField(value = heartRate, onValueChange = { heartRate = it }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Black))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp)
+                                .background(Color(0xFFA1C6E8), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                BasicTextField(
+                                    value = heartRate,
+                                    onValueChange = { heartRate = it.filter { c -> c.isDigit() } },
+                                    modifier = Modifier.weight(1f),
+                                    textStyle = TextStyle(fontSize = 16.sp, color = Color.Black),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                                if (heartRate.isNotBlank()) {
+                                    Text("bpm", fontSize = 14.sp, color = Color.DarkGray)
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            val context = androidx.compose.ui.platform.LocalContext.current
             Button(
-                onClick = { 
+                onClick = {
                     if (systolic.isNotBlank() && diastolic.isNotBlank() && date.isNotBlank() && weight.isNotBlank() && heartRate.isNotBlank()) {
                         viewModel.saveHealthReading(systolic, diastolic, date, weight, heartRate)
                         android.widget.Toast.makeText(context, "Saved Successfully", android.widget.Toast.LENGTH_SHORT).show()
-                        onNavigateBack() 
+                        onNavigateBack()
                     } else {
                         android.widget.Toast.makeText(context, "Please fill in all health reading fields", android.widget.Toast.LENGTH_SHORT).show()
                     }
@@ -162,53 +285,100 @@ fun HealthReadingMedicationScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFD4EED8), RoundedCornerShape(16.dp))
+                    .background(Color(0xFFCCF6DA), RoundedCornerShape(16.dp))
                     .border(1.dp, Color(0xFF5CB85C), RoundedCornerShape(16.dp))
                     .padding(16.dp)
             ) {
                 Column {
-                    Text("Medication Name", fontSize = 14.sp, color = Color.Black)
+                    Text("Medication Name", fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(40.dp).background(Color.White, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp), contentAlignment = Alignment.CenterStart) {
-                        BasicTextField(value = medicationName, onValueChange = { medicationName = it }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Black))
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(44.dp)
+                            .background(Color.White, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        BasicTextField(
+                            value = medicationName,
+                            onValueChange = { medicationName = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = TextStyle(fontSize = 16.sp, color = Color.Black)
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Column(modifier = Modifier.weight(2f)) {
-                            Text("Dosage", fontSize = 14.sp, color = Color.Black)
+                            Text("Dosage", fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Box(modifier = Modifier.fillMaxWidth().height(40.dp).background(Color.White, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp), contentAlignment = Alignment.CenterStart) {
-                                BasicTextField(value = dosage, onValueChange = { dosage = it }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Black))
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(44.dp)
+                                    .background(Color.White, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                BasicTextField(
+                                    value = dosage,
+                                    onValueChange = { dosage = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textStyle = TextStyle(fontSize = 16.sp, color = Color.Black)
+                                )
                             }
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Time", fontSize = 14.sp, color = Color.Black)
+                            Text("Time", fontSize = 16.sp, color = Color.Black, fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Box(modifier = Modifier.fillMaxWidth().height(40.dp).background(Color.White, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp), contentAlignment = Alignment.CenterStart) {
-                                BasicTextField(value = time, onValueChange = { time = it }, modifier = Modifier.fillMaxWidth(), textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Black))
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(44.dp)
+                                    .background(Color.White, RoundedCornerShape(8.dp))
+                                    .clickable { timePickerDialog.show() }
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = medicationTime.ifBlank { "Set" },
+                                        fontSize = 14.sp,
+                                        color = if (medicationTime.isBlank()) Color.DarkGray else Color.Black
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Schedule,
+                                        contentDescription = "Pick time",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { /* Reset forms */ medicationName = ""; dosage = ""; time = "" }) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                medicationName = ""; dosage = ""; medicationTime = ""
+                            }
+                        ) {
                             Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Delete", tint = Color.Black, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Delete", fontSize = 12.sp, color = Color.Black)
+                            Text("Delete", fontSize = 14.sp, color = Color.Black)
                         }
                     }
                 }
             }
 
             Button(
-                onClick = { 
-                    if (medicationName.isNotBlank() && dosage.isNotBlank() && time.isNotBlank()) {
-                        viewModel.setMedication(medicationName, dosage, time)
+                onClick = {
+                    if (medicationName.isNotBlank() && dosage.isNotBlank() && medicationTime.isNotBlank()) {
+                        viewModel.setMedication(medicationName, dosage, medicationTime)
                         android.widget.Toast.makeText(context, "Saved Successfully", android.widget.Toast.LENGTH_SHORT).show()
-                        onNavigateBack() 
+                        onNavigateBack()
                     } else {
                         android.widget.Toast.makeText(context, "Please fill in all medication fields", android.widget.Toast.LENGTH_SHORT).show()
                     }

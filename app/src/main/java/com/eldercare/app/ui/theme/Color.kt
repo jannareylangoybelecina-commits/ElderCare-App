@@ -10,6 +10,12 @@ val ElderCareGray = Color(0xFF7A8A99)          // Subtitle gray
 val ElderCareLightBlue = Color(0xFFD6EAF8)     // Light blue gradient at bottom
 val ElderCareLightGreen = Color(0xFFB8E6B0)    // Light green for caregiver button
 
+// ── NEW Design Colors ────────────────────────────────────────
+val ElderCareReminderGreen = Color(0xFFCCF6DA) // #CCF6DA - Reminders & Medication Tracker base
+val ElderCareElderlyBlue = Color(0xFFA2CAE8)   // #A2CAE8 - Elderly role button
+val MedicationMissedRed = Color(0xFFE53935)    // Red for missed medication status
+val MedicationTakenGreen = Color(0xFF43A047)   // Green for taken medication status
+
 // ── Primary Palette ──────────────────────────────────────────
 val PrimaryLight = ElderCareBlue
 val PrimaryDark = Color(0xFF7BB8E0)

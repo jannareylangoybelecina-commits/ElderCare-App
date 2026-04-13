@@ -28,6 +28,7 @@ fun ReminderAlertScreen(
 ) {
     val reminders by viewModel.reminders.collectAsState()
     val reminder = reminders.find { it.id == reminderId }
+        ?: reminders.find { it.id.hashCode().toString() == reminderId }
 
     if (reminder == null) {
         Box(modifier = Modifier.fillMaxSize().background(Color(0xFF8B0000)), contentAlignment = Alignment.Center) {
@@ -102,7 +103,7 @@ fun ReminderAlertScreen(
         // Mark as DONE Button
         Button(
             onClick = {
-                viewModel.markReminderCompleted(reminderId)
+                viewModel.markReminderCompleted(reminder.id)
                 onNavigateBack()
             },
             modifier = Modifier

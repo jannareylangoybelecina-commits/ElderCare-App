@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun ManageProfileScreen(
     onNavigateBack: () -> Unit,
+    onLogout: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val profile by viewModel.userProfile.collectAsState()
@@ -38,8 +39,32 @@ fun ManageProfileScreen(
     var birthday by remember(profile.birthday) { mutableStateOf(profile.birthday) }
     var gender by remember(profile.gender) { mutableStateOf(profile.gender) }
     var address by remember(profile.address) { mutableStateOf(profile.address) }
+    
+    var showLogoutConfirmation by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    if (showLogoutConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirmation = false },
+            title = { Text("Logout", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black) },
+            text = { Text("Are you sure you want to logout?", fontSize = 16.sp) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogoutConfirmation = false
+                    android.widget.Toast.makeText(context, "Logout Successfully", android.widget.Toast.LENGTH_SHORT).show()
+                    onLogout()
+                }) {
+                    Text("Logout", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirmation = false }) {
+                    Text("Cancel", color = Color.DarkGray)
+                }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = Color.White,
@@ -61,7 +86,8 @@ fun ManageProfileScreen(
                             Icon(
                                 imageVector = Icons.Default.ArrowBackIosNew,
                                 contentDescription = "Back",
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
+                                tint = Color.Black
                             )
                         }
                         Spacer(modifier = Modifier.width(32.dp))
@@ -76,7 +102,7 @@ fun ManageProfileScreen(
                     Text(
                         text = "Save",
                         color = Color(0xFF5BA4E5),
-                        fontSize = 16.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
                             .clickable {
@@ -153,7 +179,8 @@ fun ManageProfileScreen(
                     Text(
                         text = "Personal Info",
                         color = Color.Black,
-                        fontSize = 14.sp
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
                 
@@ -163,6 +190,18 @@ fun ManageProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = { showLogoutConfirmation = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Logout", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
@@ -170,7 +209,7 @@ fun ManageProfileScreen(
 @Composable
 fun ProfileField(label: String, value: String, readOnly: Boolean = false, onValueChange: (String) -> Unit) {
     Column {
-        Text(text = label, fontSize = 14.sp, color = Color.Black)
+        Text(text = label, fontSize = 16.sp, color = Color.Black)
         Spacer(modifier = Modifier.height(4.dp))
         Box(
             modifier = Modifier
@@ -184,8 +223,6 @@ fun ProfileField(label: String, value: String, readOnly: Boolean = false, onValu
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // To keep it simple, we use a basic string display, but ideally basic TextField 
-                // For direct exact matching of UI, we use transparent text field
                 androidx.compose.foundation.text.BasicTextField(
                     value = value,
                     onValueChange = onValueChange,

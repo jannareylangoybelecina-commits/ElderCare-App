@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.sp
  * Elderly-accessible typography scale.
  * All sizes are intentionally larger than the Material 3 defaults
  * to ensure readability for senior users.
+ * Minimum body/label size is 16sp for elderly readability.
  */
 val ElderCareTypography = Typography(
     displayLarge = TextStyle(
@@ -86,8 +87,8 @@ val ElderCareTypography = Typography(
     bodySmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
+        fontSize = 16.sp,
+        lineHeight = 22.sp,
         letterSpacing = 0.4.sp
     ),
     labelLarge = TextStyle(
@@ -100,15 +101,15 @@ val ElderCareTypography = Typography(
     labelMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 18.sp,
+        fontSize = 16.sp,
+        lineHeight = 20.sp,
         letterSpacing = 0.5.sp
     ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
+        fontSize = 14.sp,
+        lineHeight = 18.sp,
         letterSpacing = 0.5.sp
     )
 )

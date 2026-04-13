@@ -1,24 +1,21 @@
 package com.eldercare.app.ui.dashboard
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,18 +26,18 @@ fun NotificationMissedMedicationScreen(
     onNavigateBack: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
-    val reminders by viewModel.reminders.collectAsState()
-    
-    var showFilterDialog by remember { mutableStateOf(false) }
-    var selectedFilter by remember { mutableStateOf("Month") }
+    val missedByMonth by viewModel.missedMedicationsByMonth.collectAsState()
+    val elderlyUsersMap by viewModel.elderlyUsersMap.collectAsState()
+    val userRole by viewModel.userRole.collectAsState()
+    val isCaregiver = userRole == "caregiver"
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFC),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFEEF5FD))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
                     .statusBarsPadding()
                     .padding(vertical = 16.dp, horizontal = 16.dp)
             ) {
@@ -54,186 +51,154 @@ fun NotificationMissedMedicationScreen(
                             Icon(
                                 imageVector = Icons.Default.ArrowBackIosNew,
                                 contentDescription = "Back",
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = "Missed\nMedications",
-                            fontSize = 24.sp,
+                            text = "Missed Medications",
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color.Black,
-                            lineHeight = 28.sp
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                    }
-                    IconButton(onClick = { showFilterDialog = true }) {
-                        Icon(imageVector = Icons.Default.FilterList, contentDescription = "Filter", tint = Color.Black)
                     }
                 }
             }
         }
     ) { innerPadding ->
-        if (showFilterDialog) {
-            Dialog(
-                onDismissRequest = { showFilterDialog = false },
-                properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
+        if (missedByMonth.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFFB0AEA9), RoundedCornerShape(16.dp))
-                        .padding(bottom = 16.dp)
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = "View History By",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black,
-                            modifier = Modifier.padding(16.dp)
-                        )
-                        HorizontalDivider(thickness = 1.dp, color = Color.Gray)
-                        
-                        // Month Option
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedFilter = "Month" }
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            RadioButton(
-                                selected = selectedFilter == "Month",
-                                onClick = { selectedFilter = "Month" },
-                                colors = RadioButtonDefaults.colors(selectedColor = Color.Black, unselectedColor = Color.Black)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text("Month", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                        }
-                        HorizontalDivider(thickness = 1.dp, color = Color.Gray)
-                        
-                        // Week Option
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedFilter = "Week" }
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            RadioButton(
-                                selected = selectedFilter == "Week",
-                                onClick = { selectedFilter = "Week" },
-                                colors = RadioButtonDefaults.colors(selectedColor = Color.Black, unselectedColor = Color.Black)
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text("Week", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                        }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Selecting an option will\nfilter your history.",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.Black,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Button(
-                            onClick = { showFilterDialog = false },
-                            modifier = Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF336699))
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(imageVector = androidx.compose.material.icons.Icons.Default.Check, contentDescription = null, tint = Color.Black)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Confirm", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                            }
-                        }
-                    }
-                }
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "No missed medications on record.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 20.sp,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium
+                )
             }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Top,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val missedMedications = reminders.filter { it.isMedication && !it.isCompleted }
-
-            if (missedMedications.isNotEmpty()) {
-                missedMedications.forEach { med ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
-                            .background(Color(0xFFA1C6E8), RoundedCornerShape(16.dp))
-                            .padding(16.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.White, RoundedCornerShape(16.dp))
-                                .padding(16.dp)
-                        ) {
-                            Text("Medication Name:", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                            Text(med.title, fontSize = 16.sp, color = Color.Black)
-                            
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            Text("Date:", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                            Text(
-                                med.date.ifBlank { "Today" },
-                                fontSize = 16.sp,
-                                color = Color.Black
-                            )
-                            
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            Text("Time:", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                            Text(med.timeString, fontSize = 16.sp, color = Color.Black)
-                            
-                            Spacer(modifier = Modifier.height(24.dp))
-                            
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFFE2E0D8), RoundedCornerShape(8.dp))
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        "Missed Dose !", 
-                                        fontSize = 20.sp, 
-                                        fontWeight = FontWeight.Bold, 
-                                        color = Color(0xFFE65C5C)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        "This medication was not confirmed as taken. We will log this on your records.",
-                                        fontSize = 14.sp,
-                                        color = Color.Black,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 24.dp),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Text(
+                        text = if (isCaregiver) {
+                            "Grouped by month. Each entry shows which elderly user it belongs to."
+                        } else {
+                            "Grouped by month."
+                        },
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                missedByMonth.forEach { (monthLabel, meds) ->
+                    item {
+                        Text(
+                            text = monthLabel,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                        )
+                    }
+                    items(meds, key = { it.id }) { med ->
+                        val elderlyLabel = if (isCaregiver) {
+                            elderlyUsersMap[med.userId]?.let { "Elderly: $it" }
+                                ?: "Elderly ID: ${med.userId.ifBlank { "—" }}"
+                        } else {
+                            null
                         }
+                        MissedMedicationCard(elderlyLabel = elderlyLabel, med = med)
                     }
                 }
-            } else {
-                Text("No missed medications to display.", color = Color.Gray, modifier = Modifier.padding(top = 100.dp))
             }
         }
     }
 }
 
+@Composable
+private fun MissedMedicationCard(elderlyLabel: String?, med: ReminderItem) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+            .padding(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                .padding(16.dp)
+        ) {
+            if (elderlyLabel != null) {
+                Text("For", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(elderlyLabel, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+            Text("Medication Name:", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(med.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text("Date:", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                med.date.ifBlank { "—" },
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text("Time:", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(med.timeString, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "Missed Dose !",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "This medication was not confirmed as taken. We will log this on your records.",
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}

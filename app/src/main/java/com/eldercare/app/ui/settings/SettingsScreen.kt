@@ -8,7 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,8 +29,32 @@ fun SettingsScreen(
     onNavigateToAccessibility: () -> Unit,
     onNavigateToSecurity: () -> Unit,
     onNavigateToAboutHelp: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit
 ) {
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete Account", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Red) },
+            text = { Text("Are you sure you want to permanently delete your account? This action cannot be undone and will erase all your health data, reminders, and profile information.", fontSize = 16.sp) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirmation = false
+                    onDeleteAccount()
+                }) {
+                    Text("Delete Account", color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel", color = Color.DarkGray)
+                }
+            }
+        )
+    }
+
     Scaffold(
         containerColor = Color.White,
         topBar = {
@@ -45,7 +70,8 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBackIosNew,
                             contentDescription = "Back",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(24.dp),
+                            tint = Color.Black
                         )
                     }
                     Spacer(modifier = Modifier.width(32.dp))
@@ -69,22 +95,33 @@ fun SettingsScreen(
         ) {
             SettingsItemRow("Manage Profile", onClick = onNavigateToManageProfile)
             SettingsItemRow("Notification Controls", onClick = onNavigateToNotificationControls)
-            SettingsItemRow("Caregiver Settings", onClick = onNavigateToCaregiverSettings)
-            SettingsItemRow("Accessibility", onClick = onNavigateToAccessibility)
             SettingsItemRow("Security", onClick = onNavigateToSecurity)
             SettingsItemRow("About / Help", onClick = onNavigateToAboutHelp)
             
             Spacer(modifier = Modifier.weight(1f))
             
-            Button(
-                onClick = onLogout,
+            // Replaced Logout with Delete Account row
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                shape = RoundedCornerShape(8.dp)
+                    .clickable { showDeleteConfirmation = true },
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)), // Light red background
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Text("Logout", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Delete Account",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD32F2F) // Error Red
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -111,7 +148,7 @@ fun SettingsItemRow(title: String, onClick: () -> Unit) {
             Text(
                 text = title,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Medium,
                 color = Color.Black
             )
             Icon(

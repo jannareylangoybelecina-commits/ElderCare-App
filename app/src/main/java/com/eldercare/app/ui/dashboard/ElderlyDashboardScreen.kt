@@ -1,6 +1,9 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.eldercare.app.ui.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,6 +13,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,9 +24,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import com.eldercare.app.ui.theme.ElderCareGreen
+import com.eldercare.app.ui.theme.ElderlyDashboardWavyHeaderShape
+import com.eldercare.app.ui.theme.MockupBodyGray
+import com.eldercare.app.ui.theme.MockupBottomBarSurface
+import com.eldercare.app.ui.theme.MockupCardSurface
+import com.eldercare.app.ui.theme.MockupHeaderBlue
+import com.eldercare.app.ui.theme.MockupMedicationMissedSalmon
+import com.eldercare.app.ui.theme.MockupMedicationTakenBright
+import com.eldercare.app.ui.theme.MockupNotificationBadgeBlue
+import com.eldercare.app.ui.theme.MockupNotificationBellGold
+import com.eldercare.app.ui.theme.MockupReminderPillGreen
+import com.eldercare.app.ui.theme.MockupScreenBackground
+import com.eldercare.app.ui.theme.MockupTitleBlack
+import com.eldercare.app.ui.theme.MedicationMissedRed
+import com.eldercare.app.ui.theme.ThemeManager
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ElderlyDashboardScreen(
     onNavigateToSettings: () -> Unit,
@@ -35,16 +52,22 @@ fun ElderlyDashboardScreen(
 ) {
     val userName by viewModel.userName.collectAsState()
     val reminders by viewModel.reminders.collectAsState()
-    val healthReadings by viewModel.healthReadings.collectAsState()
+    val todayMissedMedications by viewModel.todayMissedMedications.collectAsState()
+    val unreadNotificationCount by viewModel.unreadNotificationCount.collectAsState()
 
-    var selectedBottomTab by remember { mutableStateOf(0) }
+    var selectedBottomTab by rememberSaveable { mutableStateOf(0) }
+    val isDarkTheme by ThemeManager.isDarkTheme.collectAsState()
+    val dashboardBackground =
+        if (isDarkTheme) MaterialTheme.colorScheme.background else MockupScreenBackground
 
     Scaffold(
-        containerColor = Color(0xFFE6EFF5),
+        containerColor = dashboardBackground,
         bottomBar = {
             ElderlyBottomBar(
                 selectedItem = selectedBottomTab,
-                onItemSelected = { selectedBottomTab = it }
+                onItemSelected = { selectedBottomTab = it },
+                notificationCount = unreadNotificationCount,
+                useMockupLightChrome = !isDarkTheme
             )
         }
     ) { innerPadding ->
@@ -53,35 +76,61 @@ fun ElderlyDashboardScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Header Section
-            TopHeader(userName = userName, onNavigateToSettings = onNavigateToSettings)
+            // Header Section with missed medication info
+            TopHeader(
+                userName = userName,
+                onNavigateToSettings = onNavigateToSettings,
+                missedMedicationCount = todayMissedMedications.size,
+                useMockupLightChrome = !isDarkTheme
+            )
 
             // Content based on Bottom Tab
-            // (For now, only Home is fully implemented as shown in screenshots)
             when (selectedBottomTab) {
                 0 -> {
-                    // Home content
+                    // Home content – Reminders + Medication Tracker (NO Health Readings here)
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(bottom = 24.dp)
+                            .padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(top = 6.dp, bottom = 26.dp)
                     ) {
-                        item { Spacer(modifier = Modifier.height(8.dp)) }
+                        // Reminders section (mockup: white card, green pill rows)
                         item {
-                            val generalReminders = reminders.filter { !it.isMedication }
-                            DashboardSection(title = "Reminders") {
-                                if (generalReminders.isEmpty()) {
-                                    Text("No upcoming reminders", color = Color.Gray, modifier = Modifier.padding(16.dp))
+                            val upcomingMedications = reminders.filter { it.isMedication && !it.isCompleted }
+                            val upcomingAppointments = reminders.filter { !it.isMedication && !it.isCompleted }
+                            DashboardSection(
+                                title = "Reminders",
+                                useMockupLightChrome = !isDarkTheme
+                            ) {
+                                if (upcomingMedications.isEmpty() && upcomingAppointments.isEmpty()) {
+                                    Text(
+                                        "No upcoming reminders",
+                                        color = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else MockupBodyGray,
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
                                 } else {
-                                    generalReminders.forEach { reminder ->
+                                    upcomingMedications.forEach { reminder ->
                                         ReminderCard(
-                                            icon = if (reminder.title.contains("Check", true)) Icons.Default.CalendarMonth else Icons.Default.Schedule,
+                                            icon = Icons.Default.Alarm,
                                             title = reminder.title,
                                             time = reminder.timeString,
                                             isCompleted = reminder.isCompleted,
                                             isActionable = false,
+                                            useMockupLightChrome = !isDarkTheme,
+                                            onClick = { onNavigateToReminderAlert(reminder.id) },
+                                            onDelete = { viewModel.deleteReminder(reminder.id) }
+                                        )
+                                    }
+                                    upcomingAppointments.forEach { reminder ->
+                                        ReminderCard(
+                                            icon = Icons.Default.CalendarMonth,
+                                            title = reminder.title,
+                                            time = reminder.timeString,
+                                            isCompleted = reminder.isCompleted,
+                                            isActionable = false,
+                                            useMockupLightChrome = !isDarkTheme,
                                             onClick = { onNavigateToReminderAlert(reminder.id) },
                                             onDelete = { viewModel.deleteReminder(reminder.id) }
                                         )
@@ -92,53 +141,27 @@ fun ElderlyDashboardScreen(
 
                         item {
                             val medReminders = reminders.filter { it.isMedication }
-                            DashboardSection(title = "Medication Tracker") {
+                            DashboardSection(
+                                title = "Medication Tracker",
+                                useMockupLightChrome = !isDarkTheme
+                            ) {
                                 if (medReminders.isEmpty()) {
-                                    Text("No medications scheduled", color = Color.Gray, modifier = Modifier.padding(16.dp))
+                                    Text(
+                                        "No medications scheduled",
+                                        color = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else MockupBodyGray,
+                                        fontSize = 16.sp,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
                                 } else {
                                     medReminders.forEach { reminder ->
-                                        ReminderCard(
-                                            icon = if (reminder.isCompleted) Icons.Default.CheckCircleOutline else Icons.Default.Cancel,
+                                        MedicationTrackerCard(
                                             title = reminder.title,
                                             time = reminder.timeString,
-                                            isCompleted = reminder.isCompleted,
-                                            isActionable = true,
+                                            isTaken = reminder.isCompleted,
+                                            useMockupLightChrome = !isDarkTheme,
                                             onClick = { onNavigateToReminderAlert(reminder.id) },
                                             onDelete = { viewModel.deleteReminder(reminder.id) }
                                         )
-                                    }
-                                }
-                            }
-                        }
-
-                        item {
-                            DashboardSection(title = "Health Readings") {
-                                if (healthReadings.isEmpty()) {
-                                    Text("No health readings recorded yet", color = Color.Gray, modifier = Modifier.padding(16.dp))
-                                } else {
-                                    healthReadings.forEach { reading ->
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 6.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(Color(0xFFEEF5FD))
-                                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Column {
-                                                Text(reading.date, fontSize = 14.sp, color = Color.Gray)
-                                                Text("BP: ${reading.systolic}/${reading.diastolic} mmHg", fontWeight = FontWeight.Bold, color = Color(0xFF2B7EC1))
-                                            }
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text("HR: ${reading.heartRate} bpm", fontSize = 14.sp, color = Color.Black)
-                                                Text("W: ${reading.weight} kg", fontSize = 14.sp, color = Color.Black)
-                                            }
-                                            IconButton(onClick = { viewModel.deleteHealthReading(reading.id) }) {
-                                                Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Delete", tint = Color.Red)
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -147,6 +170,10 @@ fun ElderlyDashboardScreen(
                 }
                 1 -> {
                     // Set Reminder / Appointment / Medication
+                    val pageTitleColor = if (isDarkTheme) MaterialTheme.colorScheme.onBackground else Color.Black
+                    val cardColor = if (isDarkTheme) MaterialTheme.colorScheme.surface else Color.White
+                    val onCard = if (isDarkTheme) MaterialTheme.colorScheme.onSurface else Color.Black
+                    val chevronTint = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else Color.Black
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -155,14 +182,14 @@ fun ElderlyDashboardScreen(
                         contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
                     ) {
                         item {
-                            Text("Set Reminder", fontSize = 28.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+                            Text("Set Reminder", fontSize = 28.sp, color = pageTitleColor, fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable { onNavigateToHealthReadingMedication() },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                                colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -170,11 +197,11 @@ fun ElderlyDashboardScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column {
-                                        Text("- Health Reading Results", fontSize = 16.sp, color = Color.Black)
+                                        Text("- Health Reading Results", fontSize = 16.sp, color = onCard)
                                         Spacer(modifier = Modifier.height(4.dp))
-                                        Text("- Set Medication", fontSize = 16.sp, color = Color.Black)
+                                        Text("- Set Medication", fontSize = 16.sp, color = onCard)
                                     }
-                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = Color.Black)
+                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = chevronTint)
                                 }
                             }
                         }
@@ -182,22 +209,31 @@ fun ElderlyDashboardScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable { onNavigateToSetAppointment() },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                                colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(imageVector = Icons.Default.AddCircleOutline, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.AddCircleOutline,
+                                        contentDescription = null,
+                                        tint = chevronTint,
+                                        modifier = Modifier.size(28.dp)
+                                    )
                                     Spacer(modifier = Modifier.width(16.dp))
-                                    Text("Set Appointment", fontSize = 16.sp, color = Color.Black)
+                                    Text("Set Appointment", fontSize = 16.sp, color = onCard)
                                 }
                             }
                         }
                     }
                 }
                 2 -> {
-                    // Notifications
+                    // Notifications – now includes Health Readings
+                    val pageTitleColor = if (isDarkTheme) MaterialTheme.colorScheme.onBackground else Color.Black
+                    val cardColor = if (isDarkTheme) MaterialTheme.colorScheme.surface else Color.White
+                    val onCard = if (isDarkTheme) MaterialTheme.colorScheme.onSurface else Color.Black
+                    val chevronTint = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else Color.Black
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -206,22 +242,67 @@ fun ElderlyDashboardScreen(
                         contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
                     ) {
                         item {
-                            Text("Notifications", fontSize = 28.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+                            Text("Notifications", fontSize = 28.sp, color = pageTitleColor, fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(16.dp))
                         }
+
+                        // Health Readings under Notifications
+                        item {
+                            val notifReadings by viewModel.notificationHealthReadings.collectAsState()
+                            DashboardSection(title = "Health Readings", useMockupLightChrome = !isDarkTheme) {
+                                if (notifReadings.isEmpty()) {
+                                    Text("No health readings in the last 30 days", color = Color.Gray, fontSize = 16.sp, modifier = Modifier.padding(16.dp))
+                                } else {
+                                    notifReadings.forEach { reading ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 6.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFEEF5FD))
+                                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column {
+                                                Text(reading.date, fontSize = 16.sp, color = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else Color.Gray)
+                                                Text(
+                                                    "BP: ${reading.systolic}/${reading.diastolic} mmHg",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 16.sp,
+                                                    color = if (isDarkTheme) MaterialTheme.colorScheme.primary else Color(0xFF2B7EC1)
+                                                )
+                                            }
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text("HR: ${reading.heartRate} bpm", fontSize = 16.sp, color = onCard)
+                                                Text("W: ${reading.weight} kg", fontSize = 16.sp, color = onCard)
+                                            }
+                                            IconButton(onClick = { viewModel.deleteHealthReading(reading.id) }) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Delete,
+                                                    contentDescription = "Delete",
+                                                    tint = if (isDarkTheme) MaterialTheme.colorScheme.error else Color.Red
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable { onNavigateToReadingResultsMonthList() },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                                colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Reading Results", fontSize = 20.sp, color = Color.Black)
-                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = Color.Black)
+                                    Text("Reading Results", fontSize = 20.sp, color = onCard)
+                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = chevronTint)
                                 }
                             }
                         }
@@ -229,15 +310,15 @@ fun ElderlyDashboardScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable { onNavigateToNotificationMissedMedication() },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                                colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Missed Medications", fontSize = 20.sp, color = Color.Black)
-                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = Color.Black)
+                                    Text("Missed Medications", fontSize = 20.sp, color = onCard)
+                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = chevronTint)
                                 }
                             }
                         }
@@ -245,6 +326,10 @@ fun ElderlyDashboardScreen(
                 }
                 3 -> {
                     // Health History
+                    val pageTitleColor = if (isDarkTheme) MaterialTheme.colorScheme.onBackground else Color.Black
+                    val cardColor = if (isDarkTheme) MaterialTheme.colorScheme.surface else Color.White
+                    val onCard = if (isDarkTheme) MaterialTheme.colorScheme.onSurface else Color.Black
+                    val chevronTint = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else Color.Black
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
@@ -253,22 +338,22 @@ fun ElderlyDashboardScreen(
                         contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
                     ) {
                         item {
-                            Text("Health History", fontSize = 28.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+                            Text("Health History", fontSize = 28.sp, color = pageTitleColor, fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable { onNavigateToReadingResultsMonthList() },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                                colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Reading Results", fontSize = 20.sp, color = Color.Black)
-                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = Color.Black)
+                                    Text("Reading Results", fontSize = 20.sp, color = onCard)
+                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = chevronTint)
                                 }
                             }
                         }
@@ -276,15 +361,15 @@ fun ElderlyDashboardScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth().clickable { onNavigateToNotificationMissedMedication() },
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                                colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 28.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Missed Medications", fontSize = 20.sp, color = Color.Black)
-                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = Color.Black)
+                                    Text("Missed Medications", fontSize = 20.sp, color = onCard)
+                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = chevronTint)
                                 }
                             }
                         }
@@ -292,7 +377,7 @@ fun ElderlyDashboardScreen(
                 }
                 else -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Feature coming soon", color = Color.Gray)
+                        Text("Feature coming soon", color = Color.Gray, fontSize = 16.sp)
                     }
                 }
             }
@@ -301,50 +386,117 @@ fun ElderlyDashboardScreen(
 }
 
 @Composable
-fun TopHeader(userName: String, onNavigateToSettings: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
-            .background(Color(0xFFB3D1E6))
-            .statusBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 32.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+fun TopHeader(
+    userName: String,
+    onNavigateToSettings: () -> Unit,
+    missedMedicationCount: Int = 0,
+    useMockupLightChrome: Boolean = true
+) {
+    val headerFill =
+        if (useMockupLightChrome) MockupHeaderBlue
+        else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+    val profileSurface =
+        if (useMockupLightChrome) MockupCardSurface else MaterialTheme.colorScheme.surface
+    val onHeader =
+        if (useMockupLightChrome) MockupTitleBlack else MaterialTheme.colorScheme.onSurface
+    val iconTint =
+        if (useMockupLightChrome) MockupTitleBlack else MaterialTheme.colorScheme.onSurface
+
+    val isDarkTheme by ThemeManager.isDarkTheme.collectAsState()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Reference: deeper blue wave that fully contains avatar + welcome text.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(176.dp)
+                .clip(ElderlyDashboardWavyHeaderShape)
+                .background(headerFill)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
-                    contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(start = 18.dp, end = 10.dp, top = 18.dp, bottom = 22.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PersonOutline,
-                        contentDescription = "Profile",
-                        tint = Color.DarkGray,
-                        modifier = Modifier.size(36.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(76.dp)
+                            .clip(CircleShape)
+                            .background(profileSurface)
+                            .border(
+                                width = 2.dp,
+                                color = if (useMockupLightChrome) Color(0xFFD9D9D9) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PersonOutline,
+                            contentDescription = "Profile",
+                            tint = if (useMockupLightChrome) MockupBodyGray else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(42.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "Welcome, $userName!",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = onHeader,
+                        maxLines = 2,
+                        lineHeight = 22.sp
                     )
                 }
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = "Welcome, $userName!",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF1E293B)
-                )
-            }
 
-            IconButton(onClick = onNavigateToSettings) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Settings",
-                    tint = Color(0xFF1E293B),
-                    modifier = Modifier.size(28.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = { ThemeManager.toggleTheme() },
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+                            contentDescription = "Toggle Theme",
+                            tint = iconTint,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onNavigateToSettings,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Settings",
+                            tint = iconTint,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (missedMedicationCount > 0) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (useMockupLightChrome) MockupMedicationMissedSalmon.copy(alpha = 0.35f)
+                        else MedicationMissedRed.copy(alpha = 0.18f)
+                    )
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = "⚠ $missedMedicationCount missed medication${if (missedMedicationCount > 1) "s" else ""} today",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (useMockupLightChrome) MockupTitleBlack else MedicationMissedRed
                 )
             }
         }
@@ -352,22 +504,33 @@ fun TopHeader(userName: String, onNavigateToSettings: () -> Unit) {
 }
 
 @Composable
-fun DashboardSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+fun DashboardSection(
+    title: String,
+    useMockupLightChrome: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val cardColor =
+        if (useMockupLightChrome) MockupCardSurface else MaterialTheme.colorScheme.surface
+    val titleColor =
+        if (useMockupLightChrome) MockupTitleBlack else MaterialTheme.colorScheme.onSurface
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (useMockupLightChrome) 3.dp else 1.dp
+        )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Normal,
-                color = Color.Black
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = titleColor
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             content()
         }
     }
@@ -380,86 +543,272 @@ fun ReminderCard(
     time: String,
     isCompleted: Boolean,
     isActionable: Boolean,
+    useMockupLightChrome: Boolean = true,
     onClick: () -> Unit = {},
     onDelete: () -> Unit = {}
 ) {
-    val backgroundColor = if (!isCompleted) Color(0xFFECA39E) else Color(0xFFC7F0C8)
-    
-    // Fallback UI mapping
-    val displayIcon = icon
+    val pillColor =
+        if (useMockupLightChrome) MockupReminderPillGreen
+        else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+    val fg =
+        if (useMockupLightChrome) MockupTitleBlack else MaterialTheme.colorScheme.onSecondaryContainer
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(backgroundColor)
+            .padding(vertical = 5.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(pillColor)
             .clickable { onClick() }
-            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            .padding(start = 18.dp, end = 6.dp, top = 14.dp, bottom = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = displayIcon,
+            imageVector = icon,
             contentDescription = null,
-            tint = Color.Black,
-            modifier = Modifier.size(24.dp)
+            tint = fg,
+            modifier = Modifier.size(22.dp)
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(14.dp))
         Text(
             text = "$title - $time",
-            fontSize = 15.sp,
-            color = Color.Black,
+            fontSize = 17.sp,
+            color = fg,
             fontWeight = FontWeight.Normal,
             modifier = Modifier.weight(1f)
         )
-        IconButton(onClick = onDelete) {
-            Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Delete", tint = Color.Black)
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = "Delete",
+                tint = fg.copy(alpha = 0.45f),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
 
 @Composable
-fun ElderlyBottomBar(selectedItem: Int, onItemSelected: (Int) -> Unit) {
-    NavigationBar(
-        containerColor = Color.White,
-        tonalElevation = 8.dp
+fun MedicationTrackerCard(
+    title: String,
+    time: String,
+    isTaken: Boolean,
+    useMockupLightChrome: Boolean = true,
+    onClick: () -> Unit = {},
+    onDelete: () -> Unit = {}
+) {
+    val statusIcon = if (isTaken) Icons.Default.CheckCircleOutline else Icons.Default.Cancel
+    val pillBg = when {
+        useMockupLightChrome && isTaken -> MockupMedicationTakenBright
+        useMockupLightChrome -> MockupMedicationMissedSalmon
+        isTaken -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+        else -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+    }
+    val fg =
+        if (useMockupLightChrome) MockupTitleBlack else MaterialTheme.colorScheme.onSurface
+    val iconTint =
+        if (useMockupLightChrome) MockupTitleBlack.copy(alpha = 0.85f) else MaterialTheme.colorScheme.primary
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 5.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(pillBg)
+            .clickable { onClick() }
+            .padding(start = 16.dp, end = 6.dp, top = 14.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        val items = listOf(
-            Triple("Home", Icons.Default.Home, 0),
-            Triple("Set Reminder\nAppointment/\nMedication", Icons.Default.MedicalServices, 1),
-            Triple("Notification", Icons.Default.Notifications, 2),
-            Triple("Health\nHistory", Icons.Default.Assignment, 3)
+        Icon(
+            imageVector = statusIcon,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(26.dp)
         )
-        items.forEachIndexed { index, item ->
-            NavigationBarItem(
-                icon = {
-                    Box {
-                        Icon(item.second, contentDescription = item.first)
-                        // Add badge to notification
-                        if (index == 2) {
-                            Badge(
-                                modifier = Modifier.align(Alignment.TopEnd).offset(x=8.dp, y=(-4).dp)
-                            ) { Text("2") }
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = "$title - $time",
+            fontSize = 17.sp,
+            color = fg,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = "Delete",
+                tint = fg.copy(alpha = 0.45f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ElderlyBottomBar(
+    selectedItem: Int,
+    onItemSelected: (Int) -> Unit,
+    notificationCount: Int = 0,
+    useMockupLightChrome: Boolean = true
+) {
+    val barColor =
+        if (useMockupLightChrome) MockupBottomBarSurface else MaterialTheme.colorScheme.surface
+    val selectedTint =
+        if (useMockupLightChrome) Color(0xFF4A6572) else MaterialTheme.colorScheme.primary
+    val unselectedTint =
+        if (useMockupLightChrome) MockupBodyGray else MaterialTheme.colorScheme.onSurfaceVariant
+    val navColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = selectedTint,
+        unselectedIconColor = unselectedTint,
+        selectedTextColor = selectedTint,
+        unselectedTextColor = unselectedTint,
+        indicatorColor = Color.Transparent
+    )
+
+    NavigationBar(
+        containerColor = barColor,
+        tonalElevation = if (useMockupLightChrome) 6.dp else 8.dp
+    ) {
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    Icons.Default.Home,
+                    contentDescription = "Home",
+                    modifier = Modifier.size(26.dp)
+                )
+            },
+            label = {
+                Text(
+                    "Home",
+                    fontSize = 9.5.sp,
+                    lineHeight = 11.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            },
+            selected = selectedItem == 0,
+            onClick = { onItemSelected(0) },
+            colors = navColors
+        )
+        NavigationBarItem(
+            icon = {
+                SetReminderTabIcon(
+                    tint = if (selectedItem == 1) selectedTint else unselectedTint
+                )
+            },
+            label = {
+                Text(
+                    "Set reminder\nAppt · Med",
+                    fontSize = 8.75.sp,
+                    lineHeight = 10.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 2
+                )
+            },
+            selected = selectedItem == 1,
+            onClick = { onItemSelected(1) },
+            colors = navColors
+        )
+        NavigationBarItem(
+            icon = {
+                val bellTint = when {
+                    useMockupLightChrome -> MockupNotificationBellGold
+                    selectedItem == 2 -> selectedTint
+                    else -> unselectedTint
+                }
+                Box {
+                    Icon(
+                        Icons.Default.Notifications,
+                        contentDescription = "Notification",
+                        modifier = Modifier.size(26.dp),
+                        tint = bellTint
+                    )
+                    if (notificationCount > 0) {
+                        Badge(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 10.dp, y = (-2).dp),
+                            containerColor = if (useMockupLightChrome) {
+                                MockupNotificationBadgeBlue
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            }
+                        ) {
+                            Text(
+                                "$notificationCount",
+                                fontSize = 10.sp,
+                                color = Color.White
+                            )
                         }
                     }
-                },
-                label = {
-                    Text(
-                        item.first,
-                        fontSize = 10.sp,
-                        lineHeight = 12.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                },
-                selected = selectedItem == index,
-                onClick = { onItemSelected(index) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Color(0xFF6B8A9E),
-                    unselectedIconColor = Color.Gray,
-                    selectedTextColor = Color(0xFF6B8A9E),
-                    unselectedTextColor = Color.Gray,
-                    indicatorColor = Color.Transparent
+                }
+            },
+            label = {
+                Text(
+                    "Notification",
+                    fontSize = 9.5.sp,
+                    lineHeight = 11.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
+            },
+            selected = selectedItem == 2,
+            onClick = { onItemSelected(2) },
+            colors = navColors
+        )
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    Icons.Default.Assignment,
+                    contentDescription = "Health History",
+                    modifier = Modifier.size(26.dp)
+                )
+            },
+            label = {
+                Text(
+                    "Health\nHistory",
+                    fontSize = 9.5.sp,
+                    lineHeight = 11.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 2
+                )
+            },
+            selected = selectedItem == 3,
+            onClick = { onItemSelected(3) },
+            colors = navColors
+        )
+    }
+}
+
+@Composable
+private fun SetReminderTabIcon(tint: Color) {
+    Box(modifier = Modifier.size(30.dp)) {
+        Icon(
+            imageVector = Icons.Default.CalendarMonth,
+            contentDescription = null,
+            modifier = Modifier
+                .size(26.dp)
+                .align(Alignment.Center),
+            tint = tint
+        )
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .align(Alignment.BottomEnd)
+                .offset(x = 2.dp, y = 2.dp)
+                .clip(CircleShape)
+                .background(ElderCareGreen),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(11.dp)
             )
         }
     }
