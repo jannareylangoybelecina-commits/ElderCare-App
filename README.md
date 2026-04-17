@@ -198,6 +198,14 @@ The app prioritizes elderly readability:
 
 ---
 
+## Documentation
+
+- Contribution guide: `CONTRIBUTING.md`
+- Feature reference: `docs/FEATURES.md`
+- Screenshot checklist: `docs/SCREENSHOTS.md`
+
+---
+
 ## License
 
-This project is currently private/internal unless a license file is added.
+This project is licensed under the MIT License. See `LICENSE`.
