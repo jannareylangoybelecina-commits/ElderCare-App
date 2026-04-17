@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.MedicalServices
 import androidx.compose.material.icons.outlined.Schedule
@@ -117,6 +118,28 @@ fun ReminderAlertScreen(
                 Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = Color.White)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Mark as DONE", fontSize = 16.sp, color = Color.White)
+            }
+        }
+
+        if (isMedication) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Button(
+                onClick = {
+                    viewModel.markMedicationMissed(reminder.id)
+                    onNavigateBack()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .border(2.dp, Color(0xFFD32F2F), RoundedCornerShape(24.dp)),
+                shape = RoundedCornerShape(24.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Mark as MISSED", fontSize = 16.sp, color = Color.White)
+                }
             }
         }
     }

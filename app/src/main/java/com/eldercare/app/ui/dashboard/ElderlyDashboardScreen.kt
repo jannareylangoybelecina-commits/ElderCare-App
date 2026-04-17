@@ -50,6 +50,7 @@ fun ElderlyDashboardScreen(
     onNavigateToReminderAlert: (String) -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
+    val elderlyFont = 24.sp
     val userName by viewModel.userName.collectAsState()
     val reminders by viewModel.reminders.collectAsState()
     val todayMissedMedications by viewModel.todayMissedMedications.collectAsState()
@@ -97,7 +98,9 @@ fun ElderlyDashboardScreen(
                     ) {
                         // Reminders section (mockup: white card, green pill rows)
                         item {
-                            val upcomingMedications = reminders.filter { it.isMedication && !it.isCompleted }
+                            val upcomingMedications = reminders.filter {
+                                it.isMedication && it.medicationStatus == DashboardViewModel.MED_STATUS_PENDING
+                            }
                             val upcomingAppointments = reminders.filter { !it.isMedication && !it.isCompleted }
                             DashboardSection(
                                 title = "Reminders",
@@ -107,7 +110,7 @@ fun ElderlyDashboardScreen(
                                     Text(
                                         "No upcoming reminders",
                                         color = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else MockupBodyGray,
-                                        fontSize = 16.sp,
+                                        fontSize = elderlyFont,
                                         modifier = Modifier.padding(vertical = 8.dp)
                                     )
                                 } else {
@@ -116,8 +119,9 @@ fun ElderlyDashboardScreen(
                                             icon = Icons.Default.Alarm,
                                             title = reminder.title,
                                             time = reminder.timeString,
-                                            isCompleted = reminder.isCompleted,
+                                            isCompleted = false,
                                             isActionable = false,
+                                            fontSize = elderlyFont,
                                             useMockupLightChrome = !isDarkTheme,
                                             onClick = { onNavigateToReminderAlert(reminder.id) },
                                             onDelete = { viewModel.deleteReminder(reminder.id) }
@@ -130,6 +134,7 @@ fun ElderlyDashboardScreen(
                                             time = reminder.timeString,
                                             isCompleted = reminder.isCompleted,
                                             isActionable = false,
+                                            fontSize = elderlyFont,
                                             useMockupLightChrome = !isDarkTheme,
                                             onClick = { onNavigateToReminderAlert(reminder.id) },
                                             onDelete = { viewModel.deleteReminder(reminder.id) }
@@ -140,7 +145,9 @@ fun ElderlyDashboardScreen(
                         }
 
                         item {
-                            val medReminders = reminders.filter { it.isMedication }
+                            val medReminders = reminders.filter {
+                                it.isMedication && it.medicationStatus != DashboardViewModel.MED_STATUS_PENDING
+                            }
                             DashboardSection(
                                 title = "Medication Tracker",
                                 useMockupLightChrome = !isDarkTheme
@@ -149,7 +156,7 @@ fun ElderlyDashboardScreen(
                                     Text(
                                         "No medications scheduled",
                                         color = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else MockupBodyGray,
-                                        fontSize = 16.sp,
+                                        fontSize = elderlyFont,
                                         modifier = Modifier.padding(vertical = 8.dp)
                                     )
                                 } else {
@@ -157,7 +164,9 @@ fun ElderlyDashboardScreen(
                                         MedicationTrackerCard(
                                             title = reminder.title,
                                             time = reminder.timeString,
-                                            isTaken = reminder.isCompleted,
+                                            isTaken = reminder.medicationStatus == DashboardViewModel.MED_STATUS_DONE,
+                                            isMissed = reminder.medicationStatus == DashboardViewModel.MED_STATUS_MISSED,
+                                            fontSize = elderlyFont,
                                             useMockupLightChrome = !isDarkTheme,
                                             onClick = { onNavigateToReminderAlert(reminder.id) },
                                             onDelete = { viewModel.deleteReminder(reminder.id) }
@@ -244,50 +253,6 @@ fun ElderlyDashboardScreen(
                         item {
                             Text("Notifications", fontSize = 28.sp, color = pageTitleColor, fontWeight = FontWeight.Medium)
                             Spacer(modifier = Modifier.height(16.dp))
-                        }
-
-                        // Health Readings under Notifications
-                        item {
-                            val notifReadings by viewModel.notificationHealthReadings.collectAsState()
-                            DashboardSection(title = "Health Readings", useMockupLightChrome = !isDarkTheme) {
-                                if (notifReadings.isEmpty()) {
-                                    Text("No health readings in the last 30 days", color = Color.Gray, fontSize = 16.sp, modifier = Modifier.padding(16.dp))
-                                } else {
-                                    notifReadings.forEach { reading ->
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 6.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFEEF5FD))
-                                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Column {
-                                                Text(reading.date, fontSize = 16.sp, color = if (isDarkTheme) MaterialTheme.colorScheme.onSurfaceVariant else Color.Gray)
-                                                Text(
-                                                    "BP: ${reading.systolic}/${reading.diastolic} mmHg",
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 16.sp,
-                                                    color = if (isDarkTheme) MaterialTheme.colorScheme.primary else Color(0xFF2B7EC1)
-                                                )
-                                            }
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text("HR: ${reading.heartRate} bpm", fontSize = 16.sp, color = onCard)
-                                                Text("W: ${reading.weight} kg", fontSize = 16.sp, color = onCard)
-                                            }
-                                            IconButton(onClick = { viewModel.deleteHealthReading(reading.id) }) {
-                                                Icon(
-                                                    imageVector = Icons.Outlined.Delete,
-                                                    contentDescription = "Delete",
-                                                    tint = if (isDarkTheme) MaterialTheme.colorScheme.error else Color.Red
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
                         }
 
                         item {
@@ -506,6 +471,7 @@ fun TopHeader(
 @Composable
 fun DashboardSection(
     title: String,
+    titleFontSize: androidx.compose.ui.unit.TextUnit = 24.sp,
     useMockupLightChrome: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -526,7 +492,7 @@ fun DashboardSection(
         ) {
             Text(
                 text = title,
-                fontSize = 18.sp,
+                fontSize = titleFontSize,
                 fontWeight = FontWeight.Bold,
                 color = titleColor
             )
@@ -543,6 +509,7 @@ fun ReminderCard(
     time: String,
     isCompleted: Boolean,
     isActionable: Boolean,
+    fontSize: androidx.compose.ui.unit.TextUnit = 24.sp,
     useMockupLightChrome: Boolean = true,
     onClick: () -> Unit = {},
     onDelete: () -> Unit = {}
@@ -572,7 +539,7 @@ fun ReminderCard(
         Spacer(modifier = Modifier.width(14.dp))
         Text(
             text = "$title - $time",
-            fontSize = 17.sp,
+            fontSize = fontSize,
             color = fg,
             fontWeight = FontWeight.Normal,
             modifier = Modifier.weight(1f)
@@ -596,21 +563,27 @@ fun MedicationTrackerCard(
     title: String,
     time: String,
     isTaken: Boolean,
+    isMissed: Boolean,
+    fontSize: androidx.compose.ui.unit.TextUnit = 24.sp,
     useMockupLightChrome: Boolean = true,
     onClick: () -> Unit = {},
     onDelete: () -> Unit = {}
 ) {
     val statusIcon = if (isTaken) Icons.Default.CheckCircleOutline else Icons.Default.Cancel
     val pillBg = when {
-        useMockupLightChrome && isTaken -> MockupMedicationTakenBright
+        isTaken -> Color(0xFFCCF6DA)
+        isMissed -> Color(0xFFFFD8D8)
         useMockupLightChrome -> MockupMedicationMissedSalmon
-        isTaken -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
-        else -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
     val fg =
         if (useMockupLightChrome) MockupTitleBlack else MaterialTheme.colorScheme.onSurface
-    val iconTint =
-        if (useMockupLightChrome) MockupTitleBlack.copy(alpha = 0.85f) else MaterialTheme.colorScheme.primary
+    val iconTint = when {
+        isTaken -> Color(0xFF1B8A3A)
+        isMissed -> Color(0xFFD32F2F)
+        useMockupLightChrome -> MockupTitleBlack.copy(alpha = 0.85f)
+        else -> MaterialTheme.colorScheme.primary
+    }
 
     Row(
         modifier = Modifier
@@ -631,7 +604,7 @@ fun MedicationTrackerCard(
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = "$title - $time",
-            fontSize = 17.sp,
+            fontSize = fontSize,
             color = fg,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f)

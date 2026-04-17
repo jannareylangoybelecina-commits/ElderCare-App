@@ -145,7 +145,7 @@ fun LoginScreen(
             // ── Sign-In Heading ──────────────────────────────
             Text(
                 text = "Sign-In",
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = ElderCareDarkBlue,
                 textAlign = TextAlign.Center
@@ -324,11 +324,11 @@ fun LoginScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(36.dp))
 
             // ── Register Prompt ──────────────────────────────
             Row(
-                modifier = Modifier.padding(bottom = 40.dp),
+                modifier = Modifier.padding(bottom = 84.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {

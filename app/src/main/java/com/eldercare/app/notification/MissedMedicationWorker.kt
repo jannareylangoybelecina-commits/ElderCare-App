@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
@@ -39,7 +38,7 @@ class MissedMedicationWorker(
     private suspend fun checkForMissedMedications() {
         val firestore = FirebaseFirestore.getInstance()
 
-        // Query all medication reminders that are not completed
+        // Query all medication reminders that are not completed yet.
         val snapshot = firestore.collection("reminders")
             .whereEqualTo("type", "medication")
             .whereEqualTo("isCompleted", false)
@@ -58,6 +57,9 @@ class MissedMedicationWorker(
         var missedCount = 0
 
         for (doc in snapshot.documents) {
+            val status = doc.getString("medicationStatus")
+            if (status == "DONE" || status == "MISSED") continue
+
             val timeString = doc.getString("timeString") ?: continue
             val title = doc.getString("title") ?: "Medication"
 
@@ -81,6 +83,10 @@ class MissedMedicationWorker(
             // If scheduled time has passed by more than 15 minutes, it's missed
             if (now.timeInMillis > scheduledCal.timeInMillis + 15 * 60 * 1000) {
                 missedCount++
+                firestore.collection("reminders")
+                    .document(doc.id)
+                    .update("medicationStatus", "MISSED")
+                    .await()
 
                 // Show a missed medication notification
                 val notificationId = doc.id.hashCode()

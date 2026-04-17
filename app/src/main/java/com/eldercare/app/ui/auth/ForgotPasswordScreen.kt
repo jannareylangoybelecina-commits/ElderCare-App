@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -80,11 +81,8 @@ fun ForgotPasswordScreen(
                 .padding(horizontal = 32.dp)
                 .padding(top = 24.dp)
         ) {
-            // ── Top Row: Back arrow + Title ──────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
-            ) {
+            // ── Top Row: Back arrow + centered single-line title ─────────────
+            Box(modifier = Modifier.fillMaxWidth()) {
                 IconButton(
                     onClick = {
                         viewModel.resetPasswordResetState()
@@ -100,23 +98,18 @@ fun ForgotPasswordScreen(
                     )
                 }
 
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Text(
-                        text = "Forgot",
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ElderCareDarkBlue
-                    )
-                    Text(
-                        text = "Password",
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ElderCareDarkBlue
-                    )
-                }
+                Text(
+                    text = "Forgot Password",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ElderCareDarkBlue,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 40.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -157,8 +150,8 @@ fun ForgotPasswordScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "We've sent a password reset link to:",
-                        fontSize = 15.sp,
+                        text = "We sent an email to:",
+                        fontSize = 18.sp,
                         color = ElderCareGray,
                         textAlign = TextAlign.Center
                     )
@@ -176,9 +169,9 @@ fun ForgotPasswordScreen(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Text(
-                        text = "Please check your inbox (and spam folder) for the email. " +
-                                "Click the link in the email to set a new password.",
-                        fontSize = 14.sp,
+                        text = "Open your email and tap the link to change your password. " +
+                                "Then follow the steps on the screen.",
+                        fontSize = 18.sp,
                         color = ElderCareGray,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -212,8 +205,8 @@ fun ForgotPasswordScreen(
 
                     // ── Resend option ────────────────────────
                     Text(
-                        text = "Didn't receive the email? Resend",
-                        fontSize = 14.sp,
+                        text = "Did not receive the email? Send again",
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
                         color = ElderCareBlue,
                         modifier = Modifier.clickable(
@@ -227,11 +220,10 @@ fun ForgotPasswordScreen(
             } else {
                 // ── Email Input Form ─────────────────────────
                 Text(
-                    text = "Enter the email address associated with your account. " +
-                            "We'll send you a link to reset your password.",
-                    fontSize = 15.sp,
+                    text = "Enter your email address. We will send you an email to change your password.",
+                    fontSize = 20.sp,
                     color = ElderCareDarkBlue,
-                    lineHeight = 22.sp
+                    lineHeight = 28.sp
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -239,7 +231,7 @@ fun ForgotPasswordScreen(
                 // ── Email Field ──────────────────────────────
                 Text(
                     text = "Email Address",
-                    fontSize = 15.sp,
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Medium,
                     color = ElderCareDarkBlue
                 )

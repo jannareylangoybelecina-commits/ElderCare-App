@@ -20,6 +20,7 @@ data class ReminderItem(
     val title: String = "",
     val timeString: String = "",
     val isCompleted: Boolean = false,
+    val medicationStatus: String = "PENDING",
     val isMedication: Boolean = false,
     val dosage: String = "",
     val date: String = "",
@@ -42,6 +43,11 @@ class DashboardViewModel @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val application: Application
 ) : ViewModel() {
+    companion object {
+        const val MED_STATUS_PENDING = "PENDING"
+        const val MED_STATUS_DONE = "DONE"
+        const val MED_STATUS_MISSED = "MISSED"
+    }
 
     private val _userName = MutableStateFlow("User")
     val userName: StateFlow<String> = _userName.asStateFlow()
@@ -128,6 +134,11 @@ class DashboardViewModel @Inject constructor(
                         title = doc.getString("title") ?: "",
                         timeString = doc.getString("timeString") ?: "",
                         isCompleted = doc.getBoolean("isCompleted") ?: false,
+                        medicationStatus = resolveMedicationStatus(
+                            type = type,
+                            isCompleted = doc.getBoolean("isCompleted") ?: false,
+                            storedStatus = doc.getString("medicationStatus")
+                        ),
                         isMedication = type == "medication",
                         dosage = doc.getString("dosage") ?: "",
                         date = doc.getString("date") ?: "",
@@ -151,6 +162,11 @@ class DashboardViewModel @Inject constructor(
                         title = doc.getString("title") ?: "",
                         timeString = doc.getString("timeString") ?: "",
                         isCompleted = doc.getBoolean("isCompleted") ?: false,
+                        medicationStatus = resolveMedicationStatus(
+                            type = type,
+                            isCompleted = doc.getBoolean("isCompleted") ?: false,
+                            storedStatus = doc.getString("medicationStatus")
+                        ),
                         isMedication = type == "medication",
                         dosage = doc.getString("dosage") ?: "",
                         date = doc.getString("date") ?: "",
@@ -224,7 +240,7 @@ class DashboardViewModel @Inject constructor(
         )
         
         val todayMissed = _reminders.value.filter { reminder ->
-            reminder.isMedication && !reminder.isCompleted && (
+            reminder.isMedication && reminder.medicationStatus == MED_STATUS_MISSED && (
                 reminder.date.isBlank() || 
                 reminder.date == todayStr || 
                 reminder.date == todayFormatted ||
@@ -247,7 +263,9 @@ class DashboardViewModel @Inject constructor(
         )
         val monthFormat = SimpleDateFormat("MMMM yyyy", Locale.US)
         val monthParseFmt = SimpleDateFormat("MMMM yyyy", Locale.US)
-        val allMissed = _reminders.value.filter { it.isMedication && !it.isCompleted }
+        val allMissed = _reminders.value.filter {
+            it.isMedication && it.medicationStatus == MED_STATUS_MISSED
+        }
         val grouped = allMissed.groupBy { reminder ->
             parseDate(reminder.date, dateFormats)?.let { monthFormat.format(it) } ?: "Date unknown"
         }
@@ -346,6 +364,7 @@ class DashboardViewModel @Inject constructor(
             "date" to todayDate,
             "type" to "medication",
             "isCompleted" to false,
+            "medicationStatus" to MED_STATUS_PENDING,
             "timestamp" to com.google.firebase.Timestamp.now()
         )
         firestore.collection("reminders").add(medicationData)
@@ -399,10 +418,37 @@ class DashboardViewModel @Inject constructor(
     // ── Mark Medication as Taken ─────────────────────────────
     fun markReminderCompleted(reminderId: String) {
         firestore.collection("reminders").document(reminderId)
-            .update("isCompleted", true)
+            .update(
+                mapOf(
+                    "isCompleted" to true,
+                    "medicationStatus" to MED_STATUS_DONE
+                )
+            )
 
         // Cancel the alarm since it's been completed
         ReminderScheduler.cancelReminder(application, reminderId.hashCode())
+    }
+
+    fun markMedicationMissed(reminderId: String) {
+        firestore.collection("reminders").document(reminderId)
+            .update(
+                mapOf(
+                    "isCompleted" to false,
+                    "medicationStatus" to MED_STATUS_MISSED
+                )
+            )
+
+        // Cancel the alarm to prevent repeat reminders once explicitly missed.
+        ReminderScheduler.cancelReminder(application, reminderId.hashCode())
+    }
+
+    private fun resolveMedicationStatus(type: String, isCompleted: Boolean, storedStatus: String?): String {
+        if (type != "medication") return MED_STATUS_PENDING
+        return when {
+            !storedStatus.isNullOrBlank() -> storedStatus
+            isCompleted -> MED_STATUS_DONE
+            else -> MED_STATUS_PENDING
+        }
     }
 
     // ── Delete Actions ───────────────────────────────────────

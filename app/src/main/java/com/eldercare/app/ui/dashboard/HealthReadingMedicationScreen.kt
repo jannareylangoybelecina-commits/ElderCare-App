@@ -125,6 +125,13 @@ fun HealthReadingMedicationScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
+            Text(
+                text = "Health Reading Entry",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+
             // Health Reading Form
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -282,6 +289,12 @@ fun HealthReadingMedicationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Medication Form
+            Text(
+                text = "Medication Scheduling",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

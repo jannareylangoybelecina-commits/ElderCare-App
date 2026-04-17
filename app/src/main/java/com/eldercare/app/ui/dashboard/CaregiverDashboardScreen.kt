@@ -163,7 +163,9 @@ fun CaregiverDashboardScreen(
                             )
                         }
 
-                        val pendingMeds = reminders.filter { it.isMedication && !it.isCompleted } // Show only Meds
+                        val pendingMeds = reminders.filter {
+                            it.isMedication && it.medicationStatus == DashboardViewModel.MED_STATUS_PENDING
+                        }
                         if (pendingMeds.isEmpty()) {
                             item {
                                 Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
