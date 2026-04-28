@@ -17,6 +17,12 @@ interface AuthRepository {
     val isLoggedIn: Boolean
 
     /**
+     * Returns the role for the current signed-in user.
+     * If no user is signed in, returns success with null.
+     */
+    suspend fun getCurrentUserRole(): Result<UserRole?>
+
+    /**
      * Signs in a user with email and password.
      * @return [Result] wrapping a [Pair] of [FirebaseUser] and detected [UserRole].
      */

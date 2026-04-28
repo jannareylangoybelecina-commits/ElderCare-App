@@ -8,18 +8,28 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.produceState
+import com.eldercare.app.data.model.UserRole
+import com.eldercare.app.data.repository.AuthRepository
 import com.eldercare.app.ui.navigation.ElderCareNavHost
+import com.eldercare.app.ui.navigation.Screen
 import com.eldercare.app.ui.theme.ElderCareTheme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var authRepository: AuthRepository
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -55,7 +65,31 @@ class MainActivity : ComponentActivity() {
             ElderCareTheme(darkTheme = isDarkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val navController = androidx.navigation.compose.rememberNavController()
-                    ElderCareNavHost(navController = navController)
+                    val startDestination by produceState<String?>(initialValue = null) {
+                        value = authRepository.getCurrentUserRole()
+                            .getOrNull()
+                            ?.let { role ->
+                                if (role == UserRole.CAREGIVER) {
+                                    Screen.CaregiverDashboard.route
+                                } else {
+                                    Screen.ElderlyDashboard.route
+                                }
+                            } ?: Screen.RoleSelection.route
+                    }
+
+                    if (startDestination == null) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        ElderCareNavHost(
+                            navController = navController,
+                            startDestination = startDestination!!
+                        )
+                    }
                 }
             }
         }

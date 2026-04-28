@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBackIosNew
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.*
@@ -20,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -39,6 +39,7 @@ fun ManageProfileScreen(
     var birthday by remember(profile.birthday) { mutableStateOf(profile.birthday) }
     var gender by remember(profile.gender) { mutableStateOf(profile.gender) }
     var address by remember(profile.address) { mutableStateOf(profile.address) }
+    var phoneValidationMessage by remember { mutableStateOf<String?>(null) }
     
     var showLogoutConfirmation by remember { mutableStateOf(false) }
 
@@ -106,13 +107,29 @@ fun ManageProfileScreen(
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
                             .clickable {
-                                viewModel.updateProfile(
+                                if (phone.length != 11) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Phone number must be exactly 11 digits.",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                    return@clickable
+                                }
+                                val updated = viewModel.updateProfile(
                                     UserProfile(
                                         fullName, email, phone, birthday, gender, address
                                     )
                                 )
-                                android.widget.Toast.makeText(context, "Saved Successfully", android.widget.Toast.LENGTH_SHORT).show()
-                                onNavigateBack()
+                                if (updated) {
+                                    android.widget.Toast.makeText(context, "Saved Successfully", android.widget.Toast.LENGTH_SHORT).show()
+                                    onNavigateBack()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Phone number must be exactly 11 digits.",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
                             }
                             .padding(end = 8.dp)
                     )
@@ -130,36 +147,19 @@ fun ManageProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
             // Profile image placeholder
-            Box(contentAlignment = Alignment.BottomEnd) {
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFEEF5FD)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PersonOutline,
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier.size(50.dp),
-                        tint = Color.DarkGray
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .offset(x = (-4).dp, y = (-4).dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF9FBEE0)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Edit Photo",
-                        modifier = Modifier.size(18.dp),
-                        tint = Color.DarkGray
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFEEF5FD)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PersonOutline,
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier.size(50.dp),
+                    tint = Color.DarkGray
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -167,7 +167,26 @@ fun ManageProfileScreen(
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 ProfileField("Full Name", fullName) { fullName = it }
                 ProfileField("Email", email, readOnly = true) { email = it }
-                ProfileField("Phone", phone) { phone = it }
+                ProfileField(
+                    label = "Phone",
+                    value = phone,
+                    keyboardType = KeyboardType.Number
+                ) { input ->
+                    val digitsOnly = input.filter { it.isDigit() }
+                    if (input != digitsOnly) {
+                        phoneValidationMessage = "Please enter numbers only."
+                    } else {
+                        phoneValidationMessage = null
+                    }
+                    phone = digitsOnly.take(11)
+                }
+                if (phoneValidationMessage != null || (phone.isNotBlank() && phone.length != 11)) {
+                    Text(
+                        text = phoneValidationMessage ?: "Phone number must be exactly 11 digits.",
+                        fontSize = 12.sp,
+                        color = Color(0xFFD32F2F)
+                    )
+                }
                 
                 Box(
                     modifier = Modifier
@@ -207,7 +226,13 @@ fun ManageProfileScreen(
 }
 
 @Composable
-fun ProfileField(label: String, value: String, readOnly: Boolean = false, onValueChange: (String) -> Unit) {
+fun ProfileField(
+    label: String,
+    value: String,
+    readOnly: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    onValueChange: (String) -> Unit
+) {
     Column {
         Text(text = label, fontSize = 16.sp, color = Color.Black)
         Spacer(modifier = Modifier.height(4.dp))
@@ -227,6 +252,9 @@ fun ProfileField(label: String, value: String, readOnly: Boolean = false, onValu
                     value = value,
                     onValueChange = onValueChange,
                     readOnly = readOnly,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = keyboardType
+                    ),
                     textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp, color = Color.Black),
                     modifier = Modifier.weight(1f)
                 )

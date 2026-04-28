@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.activity.compose.BackHandler
 import com.eldercare.app.ui.theme.ElderCareGreen
 import com.eldercare.app.ui.theme.ElderlyDashboardWavyHeaderShape
 import com.eldercare.app.ui.theme.MockupBodyGray
@@ -34,7 +35,7 @@ import com.eldercare.app.ui.theme.MockupMedicationMissedSalmon
 import com.eldercare.app.ui.theme.MockupMedicationTakenBright
 import com.eldercare.app.ui.theme.MockupNotificationBadgeBlue
 import com.eldercare.app.ui.theme.MockupNotificationBellGold
-import com.eldercare.app.ui.theme.MockupReminderPillGreen
+import com.eldercare.app.ui.theme.MockupReminderPillYellow
 import com.eldercare.app.ui.theme.MockupScreenBackground
 import com.eldercare.app.ui.theme.MockupTitleBlack
 import com.eldercare.app.ui.theme.MedicationMissedRed
@@ -43,10 +44,13 @@ import com.eldercare.app.ui.theme.ThemeManager
 @Composable
 fun ElderlyDashboardScreen(
     onNavigateToSettings: () -> Unit,
-    onNavigateToHealthReadingMedication: () -> Unit,
+    onNavigateToSetHealthReading: () -> Unit,
+    onNavigateToSetMedication: () -> Unit,
     onNavigateToSetAppointment: () -> Unit,
     onNavigateToReadingResultsMonthList: () -> Unit,
+    onNavigateToNotificationReadingResultsList: () -> Unit,
     onNavigateToNotificationMissedMedication: () -> Unit,
+    onNavigateToHealthHistoryMissedMedication: () -> Unit,
     onNavigateToReminderAlert: (String) -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
@@ -60,6 +64,10 @@ fun ElderlyDashboardScreen(
     val isDarkTheme by ThemeManager.isDarkTheme.collectAsState()
     val dashboardBackground =
         if (isDarkTheme) MaterialTheme.colorScheme.background else MockupScreenBackground
+
+    BackHandler(enabled = selectedBottomTab != 0) {
+        selectedBottomTab = 0
+    }
 
     Scaffold(
         containerColor = dashboardBackground,
@@ -196,20 +204,46 @@ fun ElderlyDashboardScreen(
                         }
                         item {
                             Card(
-                                modifier = Modifier.fillMaxWidth().clickable { onNavigateToHealthReadingMedication() },
+                                modifier = Modifier.fillMaxWidth().clickable { onNavigateToSetHealthReading() },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column {
-                                        Text("- Health Reading Results", fontSize = 16.sp, color = onCard)
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text("- Set Medication", fontSize = 16.sp, color = onCard)
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.AddCircleOutline,
+                                        contentDescription = null,
+                                        tint = chevronTint,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text("Health Reading Results", fontSize = 16.sp, color = onCard)
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = chevronTint)
+                                }
+                            }
+                        }
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth().clickable { onNavigateToSetMedication() },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = cardColor)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AddCircleOutline,
+                                        contentDescription = null,
+                                        tint = chevronTint,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text("Set Medication", fontSize = 16.sp, color = onCard)
+                                    Spacer(modifier = Modifier.weight(1f))
                                     Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = chevronTint)
                                 }
                             }
@@ -232,6 +266,8 @@ fun ElderlyDashboardScreen(
                                     )
                                     Spacer(modifier = Modifier.width(16.dp))
                                     Text("Set Appointment", fontSize = 16.sp, color = onCard)
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = chevronTint)
                                 }
                             }
                         }
@@ -257,7 +293,7 @@ fun ElderlyDashboardScreen(
 
                         item {
                             Card(
-                                modifier = Modifier.fillMaxWidth().clickable { onNavigateToReadingResultsMonthList() },
+                                modifier = Modifier.fillMaxWidth().clickable { onNavigateToNotificationReadingResultsList() },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
@@ -324,7 +360,7 @@ fun ElderlyDashboardScreen(
                         }
                         item {
                             Card(
-                                modifier = Modifier.fillMaxWidth().clickable { onNavigateToNotificationMissedMedication() },
+                                modifier = Modifier.fillMaxWidth().clickable { onNavigateToHealthHistoryMissedMedication() },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = CardDefaults.cardColors(containerColor = cardColor)
                             ) {
@@ -515,8 +551,8 @@ fun ReminderCard(
     onDelete: () -> Unit = {}
 ) {
     val pillColor =
-        if (useMockupLightChrome) MockupReminderPillGreen
-        else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
+        if (useMockupLightChrome) MockupReminderPillYellow
+        else Color(0xFFF9A825).copy(alpha = 0.3f)
     val fg =
         if (useMockupLightChrome) MockupTitleBlack else MaterialTheme.colorScheme.onSecondaryContainer
 

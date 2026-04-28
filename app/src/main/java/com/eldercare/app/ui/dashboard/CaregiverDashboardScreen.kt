@@ -12,6 +12,7 @@ import com.eldercare.app.ui.theme.ThemeManager
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +42,10 @@ fun CaregiverDashboardScreen(
     var showMenu by remember { mutableStateOf(false) }
     val isDarkTheme by ThemeManager.isDarkTheme.collectAsState()
 
+    BackHandler(enabled = selectedBottomTab != 0) {
+        selectedBottomTab = 0
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
@@ -58,87 +63,13 @@ fun CaregiverDashboardScreen(
             when (selectedBottomTab) {
                 0 -> {
                     // ── HOME TAB ─────────────────────────────
-                    // Top header with kebab menu
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(bottomStart = 40.dp, bottomEnd = 40.dp))
-                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f))
-                            .statusBarsPadding()
-                            .padding(horizontal = 24.dp, vertical = 32.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(60.dp)
-                                        .clip(androidx.compose.foundation.shape.CircleShape)
-                                        .background(MaterialTheme.colorScheme.surface),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PersonOutline,
-                                        contentDescription = "Profile",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(36.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = "Welcome, $userName!",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            Box {
-                                IconButton(onClick = { showMenu = true }) {
-                                    Icon(
-                                        imageVector = Icons.Default.MoreVert,
-                                        contentDescription = "Menu",
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(28.dp)
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = showMenu,
-                                    onDismissRequest = { showMenu = false },
-                                    offset = DpOffset(0.dp, 0.dp)
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Settings") },
-                                        onClick = {
-                                            showMenu = false
-                                            onNavigateToSettings()
-                                        },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.Settings, contentDescription = null)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(if (isDarkTheme) "Light mode" else "Dark mode")
-                                        },
-                                        onClick = {
-                                            showMenu = false
-                                            ThemeManager.toggleTheme()
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
-                                                contentDescription = null
-                                            )
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    // Top header sharing identical design alignment with Elderly Home UI
+                    TopHeader(
+                        userName = userName,
+                        onNavigateToSettings = onNavigateToSettings,
+                        missedMedicationCount = 0, // Caregiver side does not require personal missed meds alert
+                        useMockupLightChrome = !isDarkTheme
+                    )
 
                     val healthReadings by dashboardViewModel.healthReadings.collectAsState()
                     val reminders by dashboardViewModel.reminders.collectAsState()
@@ -152,10 +83,10 @@ fun CaregiverDashboardScreen(
                         contentPadding = PaddingValues(bottom = 24.dp, top = 24.dp)
                     ) {
                         
-                        // 1) Pending Medication Tracker
+                        // 1) Pending Medication Reminder
                         item {
                             Text(
-                                text = "Pending Medication Tracker",
+                                text = "Pending Medication Reminder",
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onBackground,
@@ -168,7 +99,14 @@ fun CaregiverDashboardScreen(
                         }
                         if (pendingMeds.isEmpty()) {
                             item {
-                                Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp)
+                                        .background(Color(0xFFE8EEF5), RoundedCornerShape(8.dp))
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text("No pending medications.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
                                 }
                             }
@@ -181,86 +119,19 @@ fun CaregiverDashboardScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp)
-                                        .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFFFF59D), RoundedCornerShape(12.dp)) // Yellow background for pending
                                         .padding(horizontal = 16.dp, vertical = 12.dp)
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.size(16.dp))
+                                        Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(userFullName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                        Text(userFullName, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(imageVector = Icons.Default.Cancel, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                                        Icon(imageVector = Icons.Default.Cancel, contentDescription = null, tint = Color.Black)
                                         Spacer(modifier = Modifier.width(16.dp))
                                         Text("${med.title} - ${med.timeString}", fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurface)
-                                    }
-                                }
-                            }
-                        }
-
-                        item {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Elderly Health Readings",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                        }
-
-                        if (healthReadings.isEmpty()) {
-                            item {
-                                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                    Text("No Health Readings found yet.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
-                                }
-                            }
-                        } else {
-                            items(healthReadings.size) { index ->
-                                val reading = healthReadings[index]
-                                val userFullName = elderlyUsersMap[reading.userId] ?: "Elderly User"
-                                
-                                Card(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth().padding(16.dp)
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(imageVector = Icons.Default.AccountCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(userFullName, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
-                                            
-                                            Spacer(modifier = Modifier.weight(1f))
-                                            Text(
-                                                text = reading.date,
-                                                fontSize = 12.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
-                                        
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column {
-                                                Text(
-                                                    text = "BP: ${reading.systolic}/${reading.diastolic} mmHg",
-                                                    fontSize = 16.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                            }
-                                            Column(horizontalAlignment = Alignment.End) {
-                                                Text("HR: ${reading.heartRate} bpm", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                                                Text("W: ${reading.weight} kg", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                                            }
-                                        }
                                     }
                                 }
                             }

@@ -92,10 +92,13 @@ fun ElderCareNavHost(
         composable(Screen.ElderlyDashboard.route) {
             ElderlyDashboardScreen(
                 onNavigateToSettings = { navController.navigateSingleTop(Screen.Settings.route) },
-                onNavigateToHealthReadingMedication = { navController.navigateSingleTop(Screen.HealthReadingMedication.route) },
+                onNavigateToSetHealthReading = { navController.navigateSingleTop(Screen.SetHealthReading.route) },
+                onNavigateToSetMedication = { navController.navigateSingleTop(Screen.SetMedication.route) },
                 onNavigateToSetAppointment = { navController.navigateSingleTop(Screen.SetAppointment.route) },
                 onNavigateToReadingResultsMonthList = { navController.navigateSingleTop(Screen.ReadingResultsMonthList.route) },
+                onNavigateToNotificationReadingResultsList = { navController.navigateSingleTop(Screen.NotificationReadingResultsList.route) },
                 onNavigateToNotificationMissedMedication = { navController.navigateSingleTop(Screen.NotificationMissedMedication.route) },
+                onNavigateToHealthHistoryMissedMedication = { navController.navigateSingleTop(Screen.HealthHistoryMissedMedication.route) },
                 onNavigateToReminderAlert = { id -> navController.navigateSingleTop(Screen.ReminderAlert.createRoute(id)) }
             )
         }
@@ -103,13 +106,19 @@ fun ElderCareNavHost(
         composable(Screen.CaregiverDashboard.route) {
             CaregiverDashboardScreen(
                 onNavigateToSettings = { navController.navigateSingleTop(Screen.Settings.route) },
-                onNavigateToReadingResultsMonthList = { navController.navigateSingleTop(Screen.ReadingResultsMonthList.route) },
-                onNavigateToNotificationMissedMedication = { navController.navigateSingleTop(Screen.NotificationMissedMedication.route) }
+                onNavigateToReadingResultsMonthList = { navController.navigateSingleTop(Screen.CaregiverNotificationReadingUserList.route) },
+                onNavigateToNotificationMissedMedication = { navController.navigateSingleTop(Screen.CaregiverNotificationMissedMedUserList.route) }
             )
         }
 
-        composable(Screen.HealthReadingMedication.route) {
-            HealthReadingMedicationScreen(
+        composable(Screen.SetHealthReading.route) {
+            SetHealthReadingScreen(
+                onNavigateBack = { navController.navigateUp() }
+            )
+        }
+
+        composable(Screen.SetMedication.route) {
+            SetMedicationScreen(
                 onNavigateBack = { navController.navigateUp() }
             )
         }
@@ -123,20 +132,65 @@ fun ElderCareNavHost(
         composable(Screen.ReadingResultsMonthList.route) {
             ReadingResultsMonthListScreen(
                 onNavigateBack = { navController.navigateUp() },
-                onNavigateToDetail = { id -> navController.navigate(Screen.NotificationReadingResult.createRoute(id)) }
+                onNavigateToDetail = { id -> navController.navigate(Screen.NotificationReadingResult.createRoute(id)) },
+                isFromNotifications = false
+            )
+        }
+        
+        composable(Screen.NotificationReadingResultsList.route) {
+            ReadingResultsMonthListScreen(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToDetail = { id -> navController.navigate(Screen.NotificationReadingResult.createRoute(id)) },
+                isFromNotifications = true
             )
         }
 
         composable(Screen.NotificationReadingResult.route) { backStackEntry ->
-            val monthOrId = backStackEntry.arguments?.getString("month") ?: ""
+            val month = backStackEntry.arguments?.getString("month") ?: ""
             NotificationReadingResultScreen(
-                month = monthOrId,
+                month = month,
+                onNavigateBack = { navController.navigateUp() }
+            )
+        }
+
+        composable(Screen.CaregiverNotificationReadingUserList.route) {
+            CaregiverNotificationReadingUserListScreen(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToDetails = { userId -> navController.navigateSingleTop(Screen.CaregiverNotificationReadingDetails.createRoute(userId)) }
+            )
+        }
+
+        composable(Screen.CaregiverNotificationReadingDetails.route) { backStackEntry ->
+            val targetUserId = backStackEntry.arguments?.getString("userId") ?: ""
+            CaregiverNotificationReadingDetailsScreen(
+                targetUserId = targetUserId,
+                onNavigateBack = { navController.navigateUp() }
+            )
+        }
+
+        composable(Screen.CaregiverNotificationMissedMedUserList.route) {
+            CaregiverNotificationMissedMedUserListScreen(
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToDetails = { userId -> navController.navigateSingleTop(Screen.CaregiverNotificationMissedMedDetails.createRoute(userId)) }
+            )
+        }
+
+        composable(Screen.CaregiverNotificationMissedMedDetails.route) { backStackEntry ->
+            val targetUserId = backStackEntry.arguments?.getString("userId") ?: ""
+            CaregiverNotificationMissedMedDetailsScreen(
+                targetUserId = targetUserId,
                 onNavigateBack = { navController.navigateUp() }
             )
         }
 
         composable(Screen.NotificationMissedMedication.route) {
             NotificationMissedMedicationScreen(
+                onNavigateBack = { navController.navigateUp() }
+            )
+        }
+
+        composable(Screen.HealthHistoryMissedMedication.route) {
+            HealthHistoryMissedMedicationScreen(
                 onNavigateBack = { navController.navigateUp() }
             )
         }

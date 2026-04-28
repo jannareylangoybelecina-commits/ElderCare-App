@@ -36,7 +36,9 @@ fun NotificationControlsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.notificationSettings.collectAsState()
+    val profile by viewModel.userProfile.collectAsState()
     val context = LocalContext.current
+    val isCaregiver = profile.role.equals("caregiver", ignoreCase = true)
 
     val ringtonePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -130,104 +132,117 @@ fun NotificationControlsScreen(
 
             ToggleSettingCard(
                 title = "Reading Result Notifications",
-                subtitle = "Get alerts for new test results",
+                subtitle = if (isCaregiver) {
+                    "Get alerts for new test results of the elder"
+                } else {
+                    "Get alerts for new test results"
+                },
                 checked = settings.readingResult,
                 onCheckedChange = { viewModel.updateNotificationSetting("readingResultNotifications", it) }
             )
 
             ToggleSettingCard(
                 title = "Missed Medication Alerts",
+                subtitle = if (isCaregiver) {
+                    "Get alerts when the elder misses a scheduled medication"
+                } else {
+                    null
+                },
                 checked = settings.missedMedication,
                 onCheckedChange = { viewModel.updateNotificationSetting("missedMedicationAlerts", it) }
             )
 
-            ToggleSettingCard(
-                title = "Appointment Reminders",
-                checked = settings.appointmentReminders,
-                onCheckedChange = { viewModel.updateNotificationSetting("appointmentReminders", it) }
-            )
-
-            HorizontalDivider(color = Color.LightGray, modifier = Modifier.padding(vertical = 8.dp))
-
-            Text(
-                text = "Alarm Settings",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            ToggleSettingCard(
-                title = "Sound",
-                subtitle = "Enable notification sounds",
-                checked = settings.sound,
-                onCheckedChange = { viewModel.updateNotificationSetting("sound", it) }
-            )
-
-            val toneSummary = when {
-                !settings.sound -> "Sound is disabled"
-                settings.alarmToneUri == null -> "System default alarm"
-                else -> "Custom sound selected"
+            if (!isCaregiver) {
+                ToggleSettingCard(
+                    title = "Appointment Reminders",
+                    checked = settings.appointmentReminders,
+                    onCheckedChange = { viewModel.updateNotificationSetting("appointmentReminders", it) }
+                )
             }
 
-            AlarmSoundOptionCard(
-                title = "System ringtone or alarm",
-                subtitle = "Opens the device ringtone picker (recommended on Android 12+)",
-                icon = Icons.Default.MusicNote,
-                enabled = settings.sound,
-                onClick = { launchRingtonePicker() }
-            )
+            if (!isCaregiver) {
+                HorizontalDivider(color = Color.LightGray, modifier = Modifier.padding(vertical = 8.dp))
 
-            AlarmSoundOptionCard(
-                title = "Audio file on device",
-                subtitle = "Pick a music or audio file (persisted for notifications)",
-                icon = Icons.Default.LibraryMusic,
-                enabled = settings.sound,
-                onClick = { openAudioLauncher.launch(arrayOf("audio/*")) }
-            )
+                Text(
+                    text = "Alarm Settings",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F8F8)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                    Text(
-                        text = "Current tone",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.DarkGray
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = toneSummary,
-                        fontSize = 15.sp,
-                        color = Color.Black
-                    )
-                    if (settings.sound && settings.alarmToneUri != null) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        TextButton(onClick = { viewModel.updateNotificationSetting("alarmToneUri", null) }) {
-                            Text("Use system default")
+                ToggleSettingCard(
+                    title = "Sound",
+                    subtitle = "Enable notification sounds",
+                    checked = settings.sound,
+                    onCheckedChange = { viewModel.updateNotificationSetting("sound", it) }
+                )
+
+                val toneSummary = when {
+                    !settings.sound -> "Sound is disabled"
+                    settings.alarmToneUri == null -> "System default alarm"
+                    else -> "Custom sound selected"
+                }
+
+                AlarmSoundOptionCard(
+                    title = "System ringtone or alarm",
+                    subtitle = "Opens the device ringtone picker (recommended on Android 12+)",
+                    icon = Icons.Default.MusicNote,
+                    enabled = settings.sound,
+                    onClick = { launchRingtonePicker() }
+                )
+
+                AlarmSoundOptionCard(
+                    title = "Audio file on device",
+                    subtitle = "Pick a music or audio file (persisted for notifications)",
+                    icon = Icons.Default.LibraryMusic,
+                    enabled = settings.sound,
+                    onClick = { openAudioLauncher.launch(arrayOf("audio/*")) }
+                )
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8F8F8)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                        Text(
+                            text = "Current tone",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.DarkGray
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = toneSummary,
+                            fontSize = 15.sp,
+                            color = Color.Black
+                        )
+                        if (settings.sound && settings.alarmToneUri != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            TextButton(onClick = { viewModel.updateNotificationSetting("alarmToneUri", null) }) {
+                                Text("Use system default")
+                            }
                         }
                     }
                 }
-            }
 
-            ToggleSettingCard(
-                title = "Vibration Only",
-                subtitle = "Vibrate without sound",
-                checked = settings.vibration && !settings.sound,
-                onCheckedChange = { isVibrateOnly ->
-                    if (isVibrateOnly) {
-                        viewModel.updateNotificationSetting("vibration", true)
-                        viewModel.updateNotificationSetting("sound", false)
-                    } else {
-                        viewModel.updateNotificationSetting("vibration", false)
-                        viewModel.updateNotificationSetting("sound", true)
+                ToggleSettingCard(
+                    title = "Vibration Only",
+                    subtitle = "Vibrate without sound",
+                    checked = settings.vibration && !settings.sound,
+                    onCheckedChange = { isVibrateOnly ->
+                        if (isVibrateOnly) {
+                            viewModel.updateNotificationSetting("vibration", true)
+                            viewModel.updateNotificationSetting("sound", false)
+                        } else {
+                            viewModel.updateNotificationSetting("vibration", false)
+                            viewModel.updateNotificationSetting("sound", true)
+                        }
                     }
-                }
-            )
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }

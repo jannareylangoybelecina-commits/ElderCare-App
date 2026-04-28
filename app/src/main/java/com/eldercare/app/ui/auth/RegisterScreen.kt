@@ -67,6 +67,7 @@ fun RegisterScreen(
     // Caregiver contact (optional)
     var caregiverName by remember { mutableStateOf("") }
     var caregiverPhone by remember { mutableStateOf("") }
+    var phoneValidationMessage by remember { mutableStateOf<String?>(null) }
 
     val expectedRole = if (role == "caregiver") UserRole.CAREGIVER else UserRole.ELDERLY
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -197,7 +198,15 @@ fun RegisterScreen(
                     // Phone No. field
                     OutlinedTextField(
                         value = phoneNumber,
-                        onValueChange = { phoneNumber = it },
+                        onValueChange = { input ->
+                            val digitsOnly = input.filter { it.isDigit() }
+                            if (input != digitsOnly) {
+                                phoneValidationMessage = "Please enter numbers only."
+                            } else {
+                                phoneValidationMessage = null
+                            }
+                            phoneNumber = digitsOnly.take(11)
+                        },
                         placeholder = {
                             Text("Phone No.", fontSize = 15.sp, color = ElderCareGray)
                         },
@@ -207,7 +216,7 @@ fun RegisterScreen(
                         shape = RoundedCornerShape(10.dp),
                         colors = registerFieldColors(),
                         keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Phone,
+                            keyboardType = KeyboardType.Number,
                             imeAction = ImeAction.Next
                         ),
                         keyboardActions = KeyboardActions(
@@ -221,11 +230,19 @@ fun RegisterScreen(
             } else {
                 RegisterField(
                     value = phoneNumber,
-                    onValueChange = { phoneNumber = it },
+                    onValueChange = { input ->
+                        val digitsOnly = input.filter { it.isDigit() }
+                        if (input != digitsOnly) {
+                            phoneValidationMessage = "Please enter numbers only."
+                        } else {
+                            phoneValidationMessage = null
+                        }
+                        phoneNumber = digitsOnly.take(11)
+                    },
                     placeholder = "Phone No.",
                     leadingIcon = { FieldIcon(Icons.Outlined.Phone) },
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Phone,
+                        keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Next
                     ),
                     keyboardActions = KeyboardActions(
@@ -235,6 +252,16 @@ fun RegisterScreen(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
+
+            if (phoneValidationMessage != null || (phoneNumber.isNotBlank() && phoneNumber.length != 11)) {
+                Text(
+                    text = phoneValidationMessage ?: "Phone number must be exactly 11 digits.",
+                    fontSize = 12.sp,
+                    color = ErrorLight,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             // ── Email Address ────────────────────────────────
             RegisterField(
@@ -314,44 +341,49 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // ── Caregiver's Contact (Optional) ───────────────
-            Text(
-                text = "Caregiver's Contact (Optional)",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                color = ElderCareDarkBlue,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            RegisterField(
-                value = caregiverName,
-                onValueChange = { caregiverName = it },
-                placeholder = "Caregiver's Name",
-                leadingIcon = { FieldIcon(Icons.Outlined.Person) },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            if (role == "elderly") {
+                Text(
+                    text = "Caregiver's Contact (Optional)",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ElderCareDarkBlue,
+                    textAlign = TextAlign.Center
                 )
-            )
 
-            Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-            RegisterField(
-                value = caregiverPhone,
-                onValueChange = { caregiverPhone = it },
-                placeholder = "Caregiver's Phone No.",
-                leadingIcon = { FieldIcon(Icons.Outlined.Phone) },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Phone,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = { focusManager.clearFocus() }
+                RegisterField(
+                    value = caregiverName,
+                    onValueChange = { caregiverName = it },
+                    placeholder = "Caregiver's Name",
+                    leadingIcon = { FieldIcon(Icons.Outlined.Person) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    )
                 )
-            )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                RegisterField(
+                    value = caregiverPhone,
+                    onValueChange = { input ->
+                        val digitsOnly = input.filter { it.isDigit() }
+                        caregiverPhone = digitsOnly.take(11)
+                    },
+                    placeholder = "Caregiver's Phone No.",
+                    leadingIcon = { FieldIcon(Icons.Outlined.Phone) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus() }
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             // ── Error Message ────────────────────────────────
             AnimatedVisibility(
@@ -376,6 +408,10 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
+                    if (phoneNumber.length != 11) {
+                        phoneValidationMessage = "Phone number must be exactly 11 digits."
+                        return@Button
+                    }
                     if (password != confirmPassword) {
                         // Handled by ViewModel validation or local check
                         return@Button

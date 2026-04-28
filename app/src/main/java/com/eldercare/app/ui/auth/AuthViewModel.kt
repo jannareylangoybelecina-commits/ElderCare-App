@@ -16,6 +16,9 @@ import javax.inject.Inject
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
+    companion object {
+        private val PHONE_REGEX = Regex("^\\d{11}$")
+    }
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -86,6 +89,10 @@ class AuthViewModel @Inject constructor(
             _uiState.update { it.copy(errorMessage = "Please fill in all required fields.") }
             return
         }
+        if (!isValidPhoneNumber(contactNumber)) {
+            _uiState.update { it.copy(errorMessage = "Phone number must be exactly 11 digits.") }
+            return
+        }
         if (password.length < 6) {
             _uiState.update { it.copy(errorMessage = "Password must be at least 6 characters.") }
             return
@@ -126,6 +133,10 @@ class AuthViewModel @Inject constructor(
     ) {
         if (email.isBlank() || password.isBlank() || fullName.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Please fill in all required fields.") }
+            return
+        }
+        if (!isValidPhoneNumber(contactNumber)) {
+            _uiState.update { it.copy(errorMessage = "Phone number must be exactly 11 digits.") }
             return
         }
         if (password.length < 6) {
@@ -211,6 +222,10 @@ class AuthViewModel @Inject constructor(
 
     fun resetPasswordResetState() {
         _passwordResetState.update { PasswordResetState() }
+    }
+
+    private fun isValidPhoneNumber(phone: String): Boolean {
+        return PHONE_REGEX.matches(phone)
     }
 }
 

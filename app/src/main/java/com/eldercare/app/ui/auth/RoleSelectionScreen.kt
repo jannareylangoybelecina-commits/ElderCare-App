@@ -7,7 +7,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -52,18 +52,17 @@ fun RoleSelectionScreen(
     onElderlySelected: () -> Unit,
     onCaregiverSelected: () -> Unit
 ) {
-    BoxWithConstraints(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MockupRoleScreenBackground)
     ) {
-        val horizontalInset = maxWidth * 0.1f
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = horizontalInset),
+                .fillMaxWidth(0.8f)
+                .align(Alignment.TopCenter),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(52.dp))
@@ -131,7 +130,7 @@ fun RoleSelectionScreen(
 
             Text(
                 text = "or",
-                fontSize = 14.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Normal,
                 color = MockupTitleBlack,
                 textAlign = TextAlign.Center
@@ -161,8 +160,8 @@ private fun RoleChoiceButton(
     val shape = RoundedCornerShape(20.dp)
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(54.dp),
+            .width(350.dp)
+            .height(87.dp),
         shape = shape,
         colors = CardDefaults.cardColors(containerColor = fill),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -179,7 +178,7 @@ private fun RoleChoiceButton(
         ) {
             Text(
                 text = label,
-                fontSize = 18.sp,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Medium,
                 color = MockupTitleBlack
             )

@@ -6,6 +6,7 @@ import com.eldercare.app.notification.ReminderScheduler
 import com.eldercare.app.notification.ReminderTimeUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FieldValue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +25,8 @@ data class ReminderItem(
     val isMedication: Boolean = false,
     val dosage: String = "",
     val date: String = "",
-    val userId: String = "" // Added to map back to user profile for Caregiver
+    val userId: String = "", // Added to map back to user profile for Caregiver
+    val dismissedByCaregiverIds: List<String> = emptyList()
 )
 
 data class HealthReadingItem(
@@ -34,7 +36,8 @@ data class HealthReadingItem(
     val date: String = "",
     val weight: String = "",
     val heartRate: String = "",
-    val userId: String = "" // Added to map back to user profile for Caregiver
+    val userId: String = "", // Added to map back to user profile for Caregiver
+    val isDeletedFromNotifications: Boolean = false
 )
 
 @HiltViewModel
@@ -83,6 +86,14 @@ class DashboardViewModel @Inject constructor(
     private val _missedMedicationsByMonth = MutableStateFlow<List<Pair<String, List<ReminderItem>>>>(emptyList())
     val missedMedicationsByMonth: StateFlow<List<Pair<String, List<ReminderItem>>>> =
         _missedMedicationsByMonth.asStateFlow()
+        
+    private val _missedMedicationFilter = MutableStateFlow("Month")
+    val missedMedicationFilter: StateFlow<String> = _missedMedicationFilter.asStateFlow()
+
+    fun setMissedMedicationFilter(filter: String) {
+        _missedMedicationFilter.value = filter
+        updateMissedMedicationsByMonth()
+    }
 
     init {
         listenToUserData()
@@ -142,7 +153,9 @@ class DashboardViewModel @Inject constructor(
                         isMedication = type == "medication",
                         dosage = doc.getString("dosage") ?: "",
                         date = doc.getString("date") ?: "",
-                        userId = doc.getString("userId") ?: ""
+                        userId = doc.getString("userId") ?: "",
+                        dismissedByCaregiverIds = doc.get("dismissedByCaregiverIds")
+                            .let { raw -> (raw as? List<*>)?.mapNotNull { it as? String } ?: emptyList() }
                     )
                 }
                 _reminders.value = items
@@ -170,7 +183,9 @@ class DashboardViewModel @Inject constructor(
                         isMedication = type == "medication",
                         dosage = doc.getString("dosage") ?: "",
                         date = doc.getString("date") ?: "",
-                        userId = doc.getString("userId") ?: ""
+                        userId = doc.getString("userId") ?: "",
+                        dismissedByCaregiverIds = doc.get("dismissedByCaregiverIds")
+                            .let { raw -> (raw as? List<*>)?.mapNotNull { it as? String } ?: emptyList() }
                     )
                 }
                 _reminders.value = items
@@ -193,7 +208,8 @@ class DashboardViewModel @Inject constructor(
                         date = doc.getString("date") ?: "",
                         weight = doc.getString("weight") ?: "",
                         heartRate = doc.getString("heartRate") ?: "",
-                        userId = doc.getString("userId") ?: ""
+                        userId = doc.getString("userId") ?: "",
+                        isDeletedFromNotifications = doc.getBoolean("isDeletedFromNotifications") ?: false
                     )
                 }
                 _healthReadings.value = items.sortedByDescending { it.date }
@@ -215,7 +231,8 @@ class DashboardViewModel @Inject constructor(
                         date = doc.getString("date") ?: "",
                         weight = doc.getString("weight") ?: "",
                         heartRate = doc.getString("heartRate") ?: "",
-                        userId = doc.getString("userId") ?: ""
+                        userId = doc.getString("userId") ?: "",
+                        isDeletedFromNotifications = doc.getBoolean("isDeletedFromNotifications") ?: false
                     )
                 }
                 _healthReadings.value = items.sortedByDescending { it.date }
@@ -226,10 +243,6 @@ class DashboardViewModel @Inject constructor(
 
     // ── Update notification-specific filtered data ───────────
     private fun updateNotificationData() {
-        // Health Readings are no longer displayed in standard Notifications feed.
-        _notificationHealthReadings.value = emptyList()
-
-        // Missed medications for today only (1-day span)
         val todayStr = SimpleDateFormat("MM/dd/yyyy", Locale.US).format(Calendar.getInstance().time)
         val todayFormatted = SimpleDateFormat("MMMM d, yyyy", Locale.US).format(Calendar.getInstance().time)
         
@@ -239,13 +252,22 @@ class DashboardViewModel @Inject constructor(
             SimpleDateFormat("yyyy-MM-dd", Locale.US)
         )
         
+        val todayReadings = _healthReadings.value.filter { reading ->
+            !reading.isDeletedFromNotifications && reading.date.isNotBlank() && (
+                reading.date == todayStr ||
+                reading.date == todayFormatted ||
+                isToday(reading.date, dateFormats)
+            )
+        }
+        _notificationHealthReadings.value = todayReadings
+
         val todayMissed = _reminders.value.filter { reminder ->
             reminder.isMedication && reminder.medicationStatus == MED_STATUS_MISSED && (
                 reminder.date.isBlank() || 
                 reminder.date == todayStr || 
                 reminder.date == todayFormatted ||
                 isToday(reminder.date, dateFormats)
-            )
+            ) && !isDismissedForCurrentCaregiver(reminder)
         }
         _todayMissedMedications.value = todayMissed
 
@@ -261,17 +283,31 @@ class DashboardViewModel @Inject constructor(
             SimpleDateFormat("MM/dd/yyyy", Locale.US),
             SimpleDateFormat("yyyy-MM-dd", Locale.US)
         )
+        val filter = _missedMedicationFilter.value
         val monthFormat = SimpleDateFormat("MMMM yyyy", Locale.US)
-        val monthParseFmt = SimpleDateFormat("MMMM yyyy", Locale.US)
+        val weekFormat = SimpleDateFormat("MMMM d, yyyy", Locale.US)
+
         val allMissed = _reminders.value.filter {
-            it.isMedication && it.medicationStatus == MED_STATUS_MISSED
+            it.isMedication && it.medicationStatus == MED_STATUS_MISSED && !isDismissedForCurrentCaregiver(it)
         }
         val grouped = allMissed.groupBy { reminder ->
-            parseDate(reminder.date, dateFormats)?.let { monthFormat.format(it) } ?: "Date unknown"
+            val parsed = parseDate(reminder.date, dateFormats)
+            if (parsed != null) {
+                if (filter == "Week") {
+                    val cal = Calendar.getInstance().apply { time = parsed }
+                    cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                    "Week of " + weekFormat.format(cal.time)
+                } else {
+                    monthFormat.format(parsed)
+                }
+            } else {
+                "Date unknown"
+            }
         }
         _missedMedicationsByMonth.value = grouped.entries
-            .sortedByDescending { (label, _) ->
-                runCatching { monthParseFmt.parse(label)?.time ?: 0L }.getOrDefault(0L)
+            .sortedByDescending { (_, items) ->
+                val firstDate = items.firstOrNull()?.date ?: ""
+                parseDate(firstDate, dateFormats)?.time ?: 0L
             }
             .map { it.key to it.value }
     }
@@ -317,28 +353,6 @@ class DashboardViewModel @Inject constructor(
     // ── Save Health Reading ─────────────────────────────────
     fun saveHealthReading(systolic: String, diastolic: String, date: String, weight: String, heartRate: String) {
         val uid = auth.currentUser?.uid ?: return
-        
-        // Format checking to restrict only 1 entry per calendar month
-        val dateFormats = listOf(
-            SimpleDateFormat("MMMM d, yyyy", Locale.US),
-            SimpleDateFormat("MM/dd/yyyy", Locale.US),
-            SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        )
-        val monthFormat = SimpleDateFormat("MMMM yyyy", Locale.US)
-        
-        val parsedNewDate = parseDate(date, dateFormats)
-        val targetMonthStr = if (parsedNewDate != null) monthFormat.format(parsedNewDate) else "Unknown"
-
-        val existingReadingsForMonth = _healthReadings.value.filter { reading ->
-            val parsed = parseDate(reading.date, dateFormats)
-            val monthStr = if (parsed != null) monthFormat.format(parsed) else "Unknown"
-            monthStr == targetMonthStr && reading.userId == uid
-        }
-
-        // Execute deletions recursively to enforce uniqueness manually
-        existingReadingsForMonth.forEach { oldReading ->
-            firestore.collection("health_readings").document(oldReading.id).delete()
-        }
 
         val readingData = mapOf(
             "userId" to uid,
@@ -452,6 +466,17 @@ class DashboardViewModel @Inject constructor(
     }
 
     // ── Delete Actions ───────────────────────────────────────
+    fun dismissReadingResultNotification(id: String) {
+        firestore.collection("health_readings").document(id)
+            .update("isDeletedFromNotifications", true)
+    }
+
+    fun dismissMissedMedicationNotification(reminderId: String) {
+        val caregiverUid = auth.currentUser?.uid ?: return
+        firestore.collection("reminders").document(reminderId)
+            .update("dismissedByCaregiverIds", FieldValue.arrayUnion(caregiverUid))
+    }
+
     fun deleteHealthReading(id: String) {
         firestore.collection("health_readings").document(id).delete()
     }
@@ -459,6 +484,12 @@ class DashboardViewModel @Inject constructor(
     fun deleteReminder(id: String) {
         firestore.collection("reminders").document(id).delete()
         ReminderScheduler.cancelReminder(application, id.hashCode())
+    }
+
+    private fun isDismissedForCurrentCaregiver(reminder: ReminderItem): Boolean {
+        if (_userRole.value != "caregiver") return false
+        val caregiverUid = auth.currentUser?.uid ?: return false
+        return reminder.dismissedByCaregiverIds.contains(caregiverUid)
     }
 
 }

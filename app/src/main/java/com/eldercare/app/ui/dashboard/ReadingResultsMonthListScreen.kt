@@ -28,10 +28,34 @@ import androidx.compose.material.icons.outlined.Delete
 fun ReadingResultsMonthListScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDetail: (String) -> Unit,
+    isFromNotifications: Boolean = false,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
-    // We now use the month-grouped data from the ViewModel
+    // We now use the month-grouped data or notification data from the ViewModel dynamically
     val readingsByMonth by viewModel.healthReadingsByMonth.collectAsState()
+    val notificationReadings by viewModel.notificationHealthReadings.collectAsState()
+    
+    val displayData = if (isFromNotifications) {
+        val monthFormat = java.text.SimpleDateFormat("MMMM yyyy", java.util.Locale.US)
+        val dateFormats = listOf(
+            java.text.SimpleDateFormat("MMMM d, yyyy", java.util.Locale.US),
+            java.text.SimpleDateFormat("MM/dd/yyyy", java.util.Locale.US),
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        )
+        notificationReadings.groupBy { reading ->
+            var parsed: java.util.Date? = null
+            for (fmt in dateFormats) {
+                try {
+                    parsed = fmt.parse(reading.date.trim())
+                    if (parsed != null) break
+                } catch (e: Exception) {}
+            }
+            parsed?.let { monthFormat.format(it) } ?: "Today"
+        }
+    } else {
+        readingsByMonth
+    }
+
     val elderlyUsersMap by viewModel.elderlyUsersMap.collectAsState()
     val userRole by viewModel.userRole.collectAsState()
     val isCaregiver = userRole == "caregiver"
@@ -69,9 +93,6 @@ fun ReadingResultsMonthListScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                    IconButton(onClick = { /* Menu */ }) {
-                        Icon(imageVector = Icons.Default.MoreVert, contentDescription = "Menu", tint = MaterialTheme.colorScheme.onSurface)
-                    }
                 }
             }
         }
@@ -84,14 +105,14 @@ fun ReadingResultsMonthListScreen(
             contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (readingsByMonth.isEmpty()) {
+            if (displayData.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No health readings currently available.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
+                        Text(if (isFromNotifications) "No new reading results for today" else "No reading results history", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
                     }
                 }
             } else {
-                readingsByMonth.forEach { (month, readings) ->
+                displayData.forEach { (month, readings) ->
                     // Month Header
                     item {
                         Text(
@@ -109,42 +130,81 @@ fun ReadingResultsMonthListScreen(
                             elderlyUsersMap[reading.userId]?.let { "Elderly: $it" }
                                 ?: "Elderly ID: ${reading.userId.ifBlank { "—" }}"
                         } else null
+                        val sys = reading.systolic.toIntOrNull() ?: 0
+                        val dia = reading.diastolic.toIntOrNull() ?: 0
+                        val isNormal = sys in 1..120 && dia in 1..80
+                        val statusText = if (isNormal) "NORMAL" else "ABNORMAL"
+                        val statusColor = if (isNormal) androidx.compose.ui.graphics.Color(0xFF4CAF50) else androidx.compose.ui.graphics.Color(0xFFF44336)
+                        val fieldBgColor = if (isNormal) androidx.compose.ui.graphics.Color(0xFFE8F5E9) else androidx.compose.ui.graphics.Color(0xFFFFEBEE)
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onNavigateToDetail(reading.id) },
                             shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White)
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 20.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    if (elderlyLine != null) {
-                                        Text(
-                                            elderlyLine,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                    }
-                                    Text(reading.date, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                                if (elderlyLine != null) {
+                                    Text(
+                                        elderlyLine,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
                                 }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(
-                                        onClick = {
-                                            viewModel.deleteHealthReading(reading.id)
-                                            android.widget.Toast.makeText(context, "Deleted successfully", android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    ) {
-                                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+
+                                val formattedDate = try {
+                                    val cal = java.util.Calendar.getInstance()
+                                    val dateFormats = listOf(
+                                        java.text.SimpleDateFormat("MMMM d, yyyy", java.util.Locale.US),
+                                        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                                    )
+                                    var parsed: java.util.Date? = null
+                                    for (fmt in dateFormats) {
+                                        try {
+                                            parsed = fmt.parse(reading.date)
+                                            if (parsed != null) break
+                                        } catch (e: Exception) {}
                                     }
-                                    Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                                    parsed?.let { java.text.SimpleDateFormat("MM/dd/yyyy", java.util.Locale.US).format(it) } ?: reading.date
+                                } catch (e: Exception) { reading.date }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(fieldBgColor, RoundedCornerShape(8.dp))
+                                        .padding(16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(formattedDate, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.Black)
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(statusText, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = statusColor)
+                                        }
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (isFromNotifications) {
+                                                        viewModel.dismissReadingResultNotification(reading.id)
+                                                        android.widget.Toast.makeText(context, "Dismissed from notifications", android.widget.Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        viewModel.deleteHealthReading(reading.id)
+                                                        android.widget.Toast.makeText(context, "Deleted from history", android.widget.Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Delete", tint = androidx.compose.ui.graphics.Color(0xFFC62828))
+                                            }
+                                            Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = androidx.compose.ui.graphics.Color.Black)
+                                        }
+                                    }
                                 }
                             }
                         }

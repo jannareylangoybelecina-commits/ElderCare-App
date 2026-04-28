@@ -4,6 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 /**
  * BroadcastReceiver triggered by AlarmManager at the scheduled time.
@@ -22,6 +27,7 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        val pendingResult = goAsync()
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "ElderCare Reminder"
         val message = intent.getStringExtra(EXTRA_MESSAGE) ?: "You have a pending reminder"
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0)
@@ -46,35 +52,78 @@ class ReminderBroadcastReceiver : BroadcastReceiver() {
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        NotificationHelper.showNotification(
-            context = context.applicationContext,
-            title = title,
-            message = message,
-            notificationId = notificationId,
-            channelId = channelId,
-            fullScreenIntent = pendingIntent
-        )
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val shouldNotify = shouldSendReminderNotification(
+                    firestoreReminderId = firestoreReminderId,
+                    isMedication = isMedication
+                )
 
-        // Some OEMs/Android versions suppress full-screen intents or channel sounds.
-        // Starting the alert UI directly ensures the selected ringtone is played.
-        if (NotificationPreferenceStore.soundEnabled(context.applicationContext)) {
-            runCatching { context.startActivity(actionIntent) }
+                if (shouldNotify) {
+                    NotificationHelper.showNotification(
+                        context = context.applicationContext,
+                        title = title,
+                        message = message,
+                        notificationId = notificationId,
+                        channelId = channelId,
+                        fullScreenIntent = pendingIntent
+                    )
+
+                    // Some OEMs/Android versions suppress full-screen intents or channel sounds.
+                    // Starting the alert UI directly ensures the selected ringtone is played.
+                    if (NotificationPreferenceStore.soundEnabled(context.applicationContext)) {
+                        runCatching { context.startActivity(actionIntent) }
+                    }
+                }
+
+                // Daily medication: schedule next occurrence (appointments are one-shot).
+                if (isMedication && firestoreReminderId.isNotEmpty()) {
+                    val nextTrigger = ReminderTimeUtils.nextDailyAfter(lastScheduledAt)
+                    ReminderScheduler.scheduleReminder(
+                        context = context.applicationContext,
+                        alarmRequestCode = firestoreReminderId.hashCode(),
+                        firestoreReminderId = firestoreReminderId,
+                        title = title,
+                        message = message,
+                        triggerTimeMillis = nextTrigger,
+                        isMedication = true,
+                        lastScheduledAtMillis = nextTrigger
+                    )
+                    Log.d(TAG, "Chained next medication alarm at $nextTrigger for $firestoreReminderId")
+                }
+            } finally {
+                pendingResult.finish()
+            }
         }
+    }
 
-        // Daily medication: schedule next occurrence (appointments are one-shot).
-        if (isMedication && firestoreReminderId.isNotEmpty()) {
-            val nextTrigger = ReminderTimeUtils.nextDailyAfter(lastScheduledAt)
-            ReminderScheduler.scheduleReminder(
-                context = context.applicationContext,
-                alarmRequestCode = firestoreReminderId.hashCode(),
-                firestoreReminderId = firestoreReminderId,
-                title = title,
-                message = message,
-                triggerTimeMillis = nextTrigger,
-                isMedication = true,
-                lastScheduledAtMillis = nextTrigger
-            )
-            Log.d(TAG, "Chained next medication alarm at $nextTrigger for $firestoreReminderId")
+    private suspend fun shouldSendReminderNotification(
+        firestoreReminderId: String,
+        isMedication: Boolean
+    ): Boolean {
+        if (firestoreReminderId.isBlank()) return true
+        return try {
+            val firestore = FirebaseFirestore.getInstance()
+            val reminderDoc = firestore.collection("reminders")
+                .document(firestoreReminderId)
+                .get()
+                .await()
+
+            val userId = reminderDoc.getString("userId").orEmpty()
+            if (userId.isBlank()) return true
+
+            val key = if (isMedication) "missedMedicationAlerts" else "appointmentReminders"
+            val defaultValue = true
+
+            val settingsDoc = firestore.collection("users")
+                .document(userId)
+                .collection("settings")
+                .document("notifications")
+                .get()
+                .await()
+            settingsDoc.getBoolean(key) ?: defaultValue
+        } catch (_: Exception) {
+            true
         }
     }
 }

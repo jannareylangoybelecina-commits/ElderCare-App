@@ -15,7 +15,7 @@ val MockupCaregiverButtonBorder = Color(0xFF7AD9A0)
 
 val MockupHeaderBlue = Color(0xFFA9CCE3)
 /** Upcoming reminder pills (reference) */
-val MockupReminderPillGreen = Color(0xFFD5F5E3)
+val MockupReminderPillYellow = Color(0xFFFFF3CD)
 /** Medication tracker — taken (reference bright green) */
 val MockupMedicationTakenBright = Color(0xFFABEBC6)
 val MockupMedicationMissedSalmon = Color(0xFFF5B7B1)

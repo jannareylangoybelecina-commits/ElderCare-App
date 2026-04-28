@@ -62,6 +62,7 @@ class MissedMedicationWorker(
 
             val timeString = doc.getString("timeString") ?: continue
             val title = doc.getString("title") ?: "Medication"
+            val userId = doc.getString("userId").orEmpty()
 
             // Try to parse the scheduled time
             val scheduledTime = try {
@@ -88,16 +89,29 @@ class MissedMedicationWorker(
                     .update("medicationStatus", "MISSED")
                     .await()
 
-                // Show a missed medication notification
-                val notificationId = doc.id.hashCode()
-                NotificationHelper.showNotification(
-                    context = context,
-                    title = "Missed Dose: $title",
-                    message = "You missed your $title scheduled at $timeString. " +
-                            "Please take it as soon as possible or consult your caregiver.",
-                    notificationId = notificationId,
-                    channelId = NotificationHelper.CHANNEL_MISSED_MED
-                )
+                val shouldNotify = if (userId.isNotBlank()) {
+                    isToggleEnabled(
+                        firestore = firestore,
+                        userId = userId,
+                        key = "missedMedicationAlerts",
+                        defaultValue = true
+                    )
+                } else {
+                    true
+                }
+
+                // Keep health history records regardless of alert preference.
+                if (shouldNotify) {
+                    val notificationId = doc.id.hashCode()
+                    NotificationHelper.showNotification(
+                        context = context,
+                        title = "Missed Dose: $title",
+                        message = "You missed your $title scheduled at $timeString. " +
+                                "Please take it as soon as possible or consult your caregiver.",
+                        notificationId = notificationId,
+                        channelId = NotificationHelper.CHANNEL_MISSED_MED
+                    )
+                }
 
                 Log.d(TAG, "Missed medication detected: $title at $timeString")
             }
@@ -105,6 +119,25 @@ class MissedMedicationWorker(
 
         if (missedCount > 0) {
             Log.d(TAG, "Total missed medications: $missedCount")
+        }
+    }
+
+    private suspend fun isToggleEnabled(
+        firestore: FirebaseFirestore,
+        userId: String,
+        key: String,
+        defaultValue: Boolean
+    ): Boolean {
+        return try {
+            val snapshot = firestore.collection("users")
+                .document(userId)
+                .collection("settings")
+                .document("notifications")
+                .get()
+                .await()
+            snapshot.getBoolean(key) ?: defaultValue
+        } catch (_: Exception) {
+            defaultValue
         }
     }
 }

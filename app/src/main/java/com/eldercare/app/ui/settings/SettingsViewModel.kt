@@ -23,7 +23,8 @@ data class UserProfile(
     val phone: String = "",
     val birthday: String = "",
     val gender: String = "",
-    val address: String = ""
+    val address: String = "",
+    val role: String = ""
 )
 
 data class NotificationSettings(
@@ -56,6 +57,10 @@ class SettingsViewModel @Inject constructor(
     private val firestore: FirebaseFirestore,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
+    companion object {
+        private val PHONE_REGEX = Regex("^\\d{11}$")
+        private val ALARM_SETTING_KEYS = setOf("alarmToneUri", "sound", "vibration")
+    }
 
     private val _userProfile = MutableStateFlow(UserProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
@@ -86,7 +91,8 @@ class SettingsViewModel @Inject constructor(
                 phone = snapshot.getString("phone") ?: "",
                 birthday = snapshot.getString("birthday") ?: "",
                 gender = snapshot.getString("gender") ?: "",
-                address = snapshot.getString("address") ?: ""
+                address = snapshot.getString("address") ?: "",
+                role = snapshot.getString("role") ?: ""
             )
         }
     }
@@ -96,9 +102,10 @@ class SettingsViewModel @Inject constructor(
         firestore.collection("users").document(uid).collection("settings").document("notifications")
             .addSnapshotListener { snapshot, error ->
                 if (error != null || snapshot == null || !snapshot.exists()) return@addSnapshotListener
-                val alarmUri = snapshot.getString("alarmToneUri")
-                val soundOn = snapshot.getBoolean("sound") ?: true
-                val vibrateOn = snapshot.getBoolean("vibration") ?: true
+                val isCaregiver = _userProfile.value.role.equals("caregiver", ignoreCase = true)
+                val alarmUri = if (isCaregiver) null else snapshot.getString("alarmToneUri")
+                val soundOn = if (isCaregiver) true else snapshot.getBoolean("sound") ?: true
+                val vibrateOn = if (isCaregiver) true else snapshot.getBoolean("vibration") ?: true
                 _notificationSettings.value = NotificationSettings(
                     readingResult = snapshot.getBoolean("readingResultNotifications") ?: true,
                     missedMedication = snapshot.getBoolean("missedMedicationAlerts") ?: true,
@@ -145,8 +152,9 @@ class SettingsViewModel @Inject constructor(
             }
     }
 
-    fun updateProfile(profile: UserProfile) {
-        val uid = auth.currentUser?.uid ?: return
+    fun updateProfile(profile: UserProfile): Boolean {
+        val uid = auth.currentUser?.uid ?: return false
+        if (!PHONE_REGEX.matches(profile.phone)) return false
         val updates = mapOf(
             "fullName" to profile.fullName,
             "phone" to profile.phone,
@@ -155,10 +163,13 @@ class SettingsViewModel @Inject constructor(
             "address" to profile.address
         )
         firestore.collection("users").document(uid).update(updates)
+        return true
     }
 
     fun updateNotificationSetting(key: String, value: Any?) {
         val uid = auth.currentUser?.uid ?: return
+        val isCaregiver = _userProfile.value.role.equals("caregiver", ignoreCase = true)
+        if (isCaregiver && key in ALARM_SETTING_KEYS) return
         val docRef = firestore.collection("users").document(uid).collection("settings").document("notifications")
         if (value == null) {
             if (key != "alarmToneUri") return

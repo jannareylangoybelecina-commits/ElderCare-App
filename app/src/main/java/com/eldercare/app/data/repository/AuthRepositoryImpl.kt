@@ -18,6 +18,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     companion object {
         const val USERS_COLLECTION = "users"
+        private val PHONE_REGEX = Regex("^\\d{11}$")
     }
 
     override val currentUser: FirebaseUser?
@@ -25,6 +26,26 @@ class AuthRepositoryImpl @Inject constructor(
 
     override val isLoggedIn: Boolean
         get() = firebaseAuth.currentUser != null
+
+    override suspend fun getCurrentUserRole(): Result<UserRole?> {
+        val user = firebaseAuth.currentUser ?: return Result.success(null)
+        return try {
+            val userDoc = firestore.collection(USERS_COLLECTION)
+                .document(user.uid)
+                .get()
+                .await()
+
+            if (!userDoc.exists()) {
+                Result.failure(Exception("User profile not found."))
+            } else {
+                val roleString = userDoc.getString("role")
+                val role = if (roleString == "caregiver") UserRole.CAREGIVER else UserRole.ELDERLY
+                Result.success(role)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     override suspend fun login(
         email: String,
@@ -62,6 +83,9 @@ class AuthRepositoryImpl @Inject constructor(
         gender: String,
         contactNumber: String
     ): Result<FirebaseUser> {
+        if (!isValidPhoneNumber(contactNumber)) {
+            return Result.failure(Exception("Phone number must be exactly 11 digits."))
+        }
         return try {
             val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
             val user = authResult.user
@@ -94,6 +118,9 @@ class AuthRepositoryImpl @Inject constructor(
         fullName: String,
         contactNumber: String
     ): Result<FirebaseUser> {
+        if (!isValidPhoneNumber(contactNumber)) {
+            return Result.failure(Exception("Phone number must be exactly 11 digits."))
+        }
         return try {
             val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
             val user = authResult.user
@@ -129,5 +156,9 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private fun isValidPhoneNumber(phone: String): Boolean {
+        return PHONE_REGEX.matches(phone)
     }
 }

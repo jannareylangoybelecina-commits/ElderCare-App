@@ -38,13 +38,24 @@ sealed class Screen(val route: String) {
     data object ContactSupport : Screen("contact_support")
     
     // Dashboard Flow Ext
-    data object HealthReadingMedication : Screen("health_reading_medication")
+    data object SetHealthReading : Screen("set_health_reading")
+    data object SetMedication : Screen("set_medication")
     data object SetAppointment : Screen("set_appointment")
     data object ReadingResultsMonthList : Screen("reading_results_month_list")
+    data object NotificationReadingResultsList : Screen("notification_reading_results_list")
     data object NotificationReadingResult : Screen("notification_reading_result/{month}") {
         fun createRoute(month: String) = "notification_reading_result/$month"
     }
+    data object CaregiverNotificationReadingUserList : Screen("caregiver_notification_reading_user_list")
+    data object CaregiverNotificationReadingDetails : Screen("caregiver_notification_reading_details/{userId}") {
+        fun createRoute(userId: String) = "caregiver_notification_reading_details/$userId"
+    }
+    data object CaregiverNotificationMissedMedUserList : Screen("caregiver_notification_missed_med_user_list")
+    data object CaregiverNotificationMissedMedDetails : Screen("caregiver_notification_missed_med_details/{userId}") {
+        fun createRoute(userId: String) = "caregiver_notification_missed_med_details/$userId"
+    }
     data object NotificationMissedMedication : Screen("notification_missed_medication")
+    data object HealthHistoryMissedMedication : Screen("health_history_missed_medication")
     data object ReminderAlert : Screen("reminder_alert/{id}") {
         fun createRoute(id: String) = "reminder_alert/$id"
     }
